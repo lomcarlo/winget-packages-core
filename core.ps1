@@ -88,10 +88,8 @@ function Get-ScriptPath {
 }
 
 # Recupera il percorso in cui l'utente ha lanciato il loader locale
-if ($Global:LocalScriptRoot) {
-    $PSScriptRoot = $Global:LocalScriptRoot
-} else {
-    if ($PSVersionTable.PSVersion.Major -ge 3) { $PSScriptRoot = $PSScriptRoot } else { $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition }
+if ($Global:LocalScriptRoot == "") {
+    Write-Host (Show-CenteredBox -action "$$Global:LocalScriptRoot non presente") -ForegroundColor Red
 }
 
 # Funzione per verificare l'esistenza di un programma nel percorso di installazione standard
