@@ -185,7 +185,7 @@ function Install-Sw {
     param(
         [string]$Name,
         [string]$Id,
-        [bool]$Ask = $true,
+        [bool]$Ask = $false,
         [string]$Source = "winget"
     )
 
@@ -195,7 +195,7 @@ function Install-Sw {
     if ($Ask) {
         $decision = $host.UI.PromptForChoice($title, $message, $choices, 1)
     } else {
-        # Se $Ask è false, forziamo la decisione a 0 (Installa)
+        # Se $Ask è false, forziamo la decisione a 0 (Installa senza chiedere)
 		Write-Host $title
         $decision = 0
     }
@@ -283,7 +283,7 @@ $MenuItems = @{
     
     "SOFTWARE ESSENZIALI" = @(
         @{ Name = "Winget AutoUpdate"; ScriptBlock = {
-            Install-Sw "Winget AutoUpdate" "Romanitho.Winget-AutoUpdate" $false
+            Install-Sw "Winget AutoUpdate" "Romanitho.Winget-AutoUpdate"
             $wauPath = "$env:ProgramData\WAU"
             $exclusionFileSource = Join-Path $Global:LocalScriptRoot "excluded_apps.txt"
             $exclusionFileDest = Join-Path $wauPath "excluded_apps.txt"
@@ -296,11 +296,11 @@ $MenuItems = @{
                 Write-Host "File excluded_apps.txt configurato." -ForegroundColor Green
             }
         }}
-        @{ Name = "Google Drive"; ScriptBlock = { Install-Sw "Google Drive" "Google.GoogleDrive" $false } }
-        @{ Name = "Google Chrome"; ScriptBlock = { Install-Sw "Google Chrome" "Google.Chrome" $false } }
-        @{ Name = "7zip"; ScriptBlock = { Install-Sw "7zip" "7zip.7zip" $false } }
-        @{ Name = "Zoom"; ScriptBlock = { Install-Sw "Zoom Workplace" "Zoom.Zoom" $false } }
-        @{ Name = "VLC Player"; ScriptBlock = { Install-Sw "VLC Video Player" "VLC.VLC" $false } }
+        @{ Name = "Google Drive"; ScriptBlock = { Install-Sw "Google Drive" "Google.GoogleDrive" } }
+        @{ Name = "Google Chrome"; ScriptBlock = { Install-Sw "Google Chrome" "Google.Chrome" } }
+        @{ Name = "7zip"; ScriptBlock = { Install-Sw "7zip" "7zip.7zip" } }
+        @{ Name = "Zoom"; ScriptBlock = { Install-Sw "Zoom Workplace" "Zoom.Zoom" } }
+        @{ Name = "VLC Player"; ScriptBlock = { Install-Sw "VLC Video Player" "VLC.VLC" } }
     )
     
     "SOFTWARE OFFICE & COMUNICAZIONE" = @(
