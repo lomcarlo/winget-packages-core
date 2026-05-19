@@ -87,13 +87,13 @@ function Get-ScriptPath {
     }
 }
 
-# 1. Se la variabile globale non esiste o è vuota, prova i metodi di fallback
+# 1. Se la variabile globale non esiste o è vuota, prova il fallback
 if ([string]::IsNullOrEmpty($Global:LocalScriptRoot)) {
     
-    # Visualizza il box di avviso (Corretto il doppio dollaro con il backtick di escape)
+    # Visualizza il box di avviso 
     Write-Host (Show-CenteredBox -action "`$Global:LocalScriptRoot non presente. Provo con Get-ScriptPath" -rows 1) -ForegroundColor Red
     
-    # Tenta il recupero locale (nota: la funzione Get-ScriptPath deve essere già dichiarata sopra nel codice)
+    # Assegnazione corretta con un solo uguale '='
     $Global:LocalScriptRoot = Get-ScriptPath
 }
 
