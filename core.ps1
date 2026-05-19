@@ -403,7 +403,6 @@ Invoke-Action -Name "Installazione di software di utilità" -Description "Verran
     Install-Sw "Mendeley Reference Manager" "Elsevier.MendeleyReferenceManager"
     Install-Sw "Advanced Renamer", "HulubuluSoftware.AdvancedRenamer"
     Download-Install-Sw "AutoHotkey", "https://www.autohotkey.com/download/ahk-v2.exe", "C:\Program Files\AutoHotkey\UX\AutoHotkeyUX.exe"
-    Install-Sw "", ""
 }
 
 Invoke-Action -Name "Installazione di software Statistici" -Description "Verranno installati con singola conferma i software statistici come`r`nStata 19, Jasp, GPower, R con R-Studio, Orange, Python o Jupyter Notebook" -Rows 3 -ScriptBlock {
