@@ -228,6 +228,25 @@ $MenuItems = @{
             Set-ItemProperty -Path $RegistryPath -Name "DisablePrivacyExperience" -Value 1 -Type DWORD -Force
             Write-Host "OOBE disabilitato." -ForegroundColor Green
         }}
+        @{ Name = "Eliminazione automatica vecchi account"; ScriptBlock = {
+            Set-Location $Global:LocalScriptRoot
+            $psPath = (Join-Path (Get-Location).Path "manutenzioneAccount.ps1")
+            $destinazione = "C:\Program Files\ManutenzioneAccount"
+            if (!(Test-ProgramPath $destinazione)) {
+                New-Item -Path $destinazione -ItemType Directory
+            }
+            Copy-Item -Path $psPath -Destination $destinazione -Force
+            
+            # 1. Definisci il percorso completo dello script
+            $ScriptPath = Join-Path $destinazione "manutenzioneAccount.ps1"
+            
+            # Usiamo le virgolette interne per proteggere il percorso con spazi
+            $Command = "PowerShell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
+            
+            # Esecuzione del comando schtasks
+            schtasks.exe /Create /TN "PuliziaAccountInattivi" /TR $Command /SC MONTHLY /D 1 /ST 03:00 /RU "SYSTEM" /RL HIGHEST /F
+            Write-Host "Task scheduler programmato per pulizia account inattivi." -ForegroundColor Green
+        }}
         @{ Name = "Impostazione immagine UniPV"; ScriptBlock = {
             Set-Location $Global:LocalScriptRoot
             $bg_path = Join-Path (Get-Location).Path "grafica_unipv\unipv_bg.jpg"
@@ -518,8 +537,175 @@ function Show-SubMenu {
 }
 
 # ============================================================================
+# MENU MICROSOFT OFFICE
+# ============================================================================
+function Show-OfficeMenu {
+    $action = "Installazione di Microsoft Office"
+    $description = "Verrà installata la versione scelta di Microsoft Office"
+    $title = Show-CenteredBox -action $action
+    $message = "Vuoi procedere alla $action`?`r`n$description"
+    $choicesOffice = [System.Management.Automation.Host.ChoiceDescription[]]@(
+        New-Object System.Management.Automation.Host.ChoiceDescription "Sì, Office &365", "Office 365."
+        New-Object System.Management.Automation.Host.ChoiceDescription "Sì, Office &2016", "Office Professional Plus 2016 64bit."
+        New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Salta questa operazione."
+        New-Object System.Management.Automation.Host.ChoiceDescription "&Esci", "Interrompe l'intero script."
+    )
+    
+    $decision = $host.UI.PromptForChoice($title, $message, $choicesOffice, 2)
+    
+    switch ($decision) {
+        0 {
+            Write-Host "Procedo con la $action..." -ForegroundColor Cyan
+            Write-Host "Installazione interattiva di Office 365, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
+            winget install -e --id Microsoft.Office --source winget --accept-package-agreements
+            Write-Host "$action completata." -ForegroundColor Green
+        }
+        1 {
+            Write-Host "Procedo con la $action..." -ForegroundColor Cyan
+            # Controllo se Office 2016 è già installato
+            $OfficeInstalled = Test-ProgramPath "C:\Program Files\Microsoft Office\Office16\WINWORD.EXE" -or Test-ProgramPath "C:\Program Files (x86)\Microsoft Office\Office16\WINWORD.EXE"
+            if ($OfficeInstalled) {
+                Write-Host "Office 2016 sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
+            } else {
+                $OfficePath = "$Global:LocalScriptRoot\Office Professional Plus 2016 64bit Ita\setup.exe"
+                if (Test-ProgramPath $OfficePath) {
+                    Write-Host "Installazione interattiva di Office 2016, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
+                    Start-Process $OfficePath -Wait
+                    Write-Host "Installazione di Office 2016 completata. Ricordati di inserire la chiave di licenza." -ForegroundColor Green
+                } else {
+                    Write-Warning "File di installazione di Office 2016 non trovato al percorso $OfficePath. Salto l'installazione."
+                }
+            }
+            Write-Host "$action completata." -ForegroundColor Green
+        }
+        2 {
+            Write-Host "$action saltata." -ForegroundColor Yellow
+        }
+        3 {
+            Write-Host "Uscita in corso..." -ForegroundColor Red
+            exit 
+        }
+    }
+}
+
+# ============================================================================
+# MENU pGINA
+# ============================================================================
+function Show-PGinaMenu {
+    $action = "Installazione di pGina"
+    $description = "Verrà installata la versione scelta di pGina, software per l'accesso a Windows tramite LDAP, MySQL, ecc."
+    $title = Show-CenteredBox -action $action
+    $message = "Vuoi procedere alla $action`?`r`n$description"
+    
+    $choicesPGina = [System.Management.Automation.Host.ChoiceDescription[]]@(
+        New-Object System.Management.Automation.Host.ChoiceDescription "Sì, pGina &originale 3.1.8.0", "pGina originale."
+        New-Object System.Management.Automation.Host.ChoiceDescription "Sì, pGina &fork 3.9.9.12", "pGina Fork."
+        New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Salta questa operazione."
+        New-Object System.Management.Automation.Host.ChoiceDescription "&Esci", "Interrompe l'intero script."
+    )
+    
+    $decision = $host.UI.PromptForChoice($title, $message, $choicesPGina, 2)
+    
+    switch ($decision) {
+        0 {
+            $name = "pGina 3.1.8.0"
+            $installed = Test-ProgramPath "C:\Program Files\pGina.fork\pGina.Configuration.exe"
+            if ($installed) {
+                Write-Host "$name sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
+            } else {
+                $path = "$Global:LocalScriptRoot\pgina\pGinaSetup.exe"
+                $dir = Split-Path $path
+                if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
+                Write-Host "Download di $name in corso..." -ForegroundColor Cyan
+                Invoke-WebRequest -Uri "https://github.com/pgina/pgina/releases/download/v3.1.8.0/pGinaSetup-3.1.8.0.exe" -OutFile $path
+                if (Test-ProgramPath $path) {
+                    Write-Host "Procedo con l'installazione di $name. Ricordati di chiuderlo per continuare lo script..." -ForegroundColor Cyan
+                    Start-Process $path -Wait
+                    Set-Location $Global:LocalScriptRoot
+                    $user_img_path = (Join-Path (Get-Location).Path "grafica_unipv\unipv_logo_RGB.bmp")
+                    if (Test-ProgramPath $user_img_path) {
+                        Copy-Item $user_img_path -Destination "C:\unipv_logo_RGB.bmp" -Force
+                    }
+                    Write-Host "Installazione di $name completata." -ForegroundColor Green
+                } else {
+                    Write-Warning "File di installazione non trovato al percorso $path. Salto l'installazione."
+                }
+            }
+        }
+        1 {
+            $name = "pGina fork 3.9.9.12"
+            $installed = Test-ProgramPath "C:\Program Files\pGina\pGina.Configuration.exe"
+            if ($installed) {
+                Write-Host "$name sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
+            } else {
+                $path = "$Global:LocalScriptRoot\pgina.fork\pGinaSetup.exe"
+                $dir = Split-Path $path
+                if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
+                Write-Host "Download di $name in corso..." -ForegroundColor Cyan
+                Invoke-WebRequest -Uri "https://github.com/MutonUfoAI/pgina/releases/download/3.9.9.12/pGinaSetup-3.9.9.12.exe" -OutFile $path
+                if (Test-ProgramPath $path) {
+                    Write-Host "Procedo con l'installazione di $name. Ricordati di chiuderlo per continuare lo script..." -ForegroundColor Cyan
+                    Start-Process $path -Wait
+                    Set-Location $Global:LocalScriptRoot
+                    $user_img_path = (Join-Path (Get-Location).Path "grafica_unipv\unipv_logo_RGB.bmp")
+                    if (Test-ProgramPath $user_img_path) {
+                        Copy-Item $user_img_path -Destination "C:\unipv_logo_RGB.bmp" -Force
+                    }
+                    Write-Host "Installazione di $name completata." -ForegroundColor Green
+                } else {
+                    Write-Warning "File di installazione non trovato al percorso $path. Salto l'installazione."
+                }
+            }
+        }
+        2 {
+            Write-Host "$action saltata." -ForegroundColor Yellow
+        }
+        3 {
+            Write-Host "Uscita in corso..." -ForegroundColor Red
+            exit 
+        }
+    }
+}
+
+# ============================================================================
 # AVVIA IL MENU
 # ============================================================================
 Show-MainMenu
+
+# Dopo il menu principale, offri i software aggiuntivi
+Write-Host (Show-CenteredBox -action "SOFTWARE AGGIUNTIVO" -rows 2) -ForegroundColor Cyan
+Write-Host "`n"
+
+# Microsoft Office
+Invoke-Action -Name "Installazione di Microsoft Office" -Description "Verrà installata la versione scelta di Microsoft Office (365 o 2016)" -Rows 2 -ScriptBlock {
+    Show-OfficeMenu
+}
+
+# pGina
+Invoke-Action -Name "Installazione di pGina" -Description "Verrà installata la versione scelta di pGina (originale o fork) per accesso LDAP" -Rows 2 -ScriptBlock {
+    Show-PGinaMenu
+}
+
+# Supremo Control
+Invoke-Action -Name "Installazione di Supremo Control" -Description "Verrà installato il software di accesso remoto Supremo Control" -ScriptBlock {
+    $installed = Test-ProgramPath "C:\Program Files (x86)\Supremo\Supremo.exe"
+    if ($installed) {
+        Write-Host "Supremo sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
+    } else {
+        $path = "$Global:LocalScriptRoot\supremo\supremo.exe"
+        $dir = Split-Path $path
+        if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
+        Write-Host "Download di Supremo in corso..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri "https://www.nanosystems.it/public/download/Supremo.exe" -OutFile $path
+        if (Test-ProgramPath $path) {
+            Write-Host "Procedo con l'installazione di Supremo. Ricordati di chiuderlo per continuare lo script..." -ForegroundColor Cyan
+            Start-Process $path -Wait
+            Write-Host "Installazione di Supremo completata." -ForegroundColor Green
+        } else {
+            Write-Warning "File di installazione non trovato al percorso $path. Salto l'installazione."
+        }
+    }
+}
+
 Write-Host (Show-CenteredBox -action "INSTALLAZIONE COMPLETATA" -rows 3) -ForegroundColor Green
 pause
