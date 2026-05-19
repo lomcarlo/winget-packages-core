@@ -89,7 +89,11 @@ function Get-ScriptPath {
 
 # Recupera il percorso in cui l'utente ha lanciato il loader locale
 if ($Global:LocalScriptRoot == "") {
-    Write-Host (Show-CenteredBox -action "$$Global:LocalScriptRoot non presente") -ForegroundColor Red
+    Write-Host (Show-CenteredBox -action "$$Global:LocalScriptRoot non presente Provo con Get-ScriptPath") -ForegroundColor Red
+	$Global:LocalScriptRoot = Get-ScriptPath
+}
+if ($Global:LocalScriptRoot == "") {
+	Write-Host (Show-CenteredBox -action "Non funziona nemmeno Get-ScriptPath") -ForegroundColor Red
 }
 
 # Funzione per verificare l'esistenza di un programma nel percorso di installazione standard
@@ -214,7 +218,7 @@ Invoke-Action -Name "Disabilitazione di OOBE" -Description "Verrà disabilitato 
 }
 
 Invoke-Action -Name "Eliminazione automatica vecchi account" -Description "Verrà programmata l'eliminazione degli account in disuso da almeno 90 giorni" -ScriptBlock {
-	Set-Location $PSScriptRoot
+	Set-Location $Global:LocalScriptRoot
 	$psPath = (Join-Path (Get-Location).Path "\manutenzioneAccount.ps1")
 	$destinazione = "C:\Program Files\ManutenzioneAccount"
 	if (!(Test-ProgramPath $destinazione)) {
@@ -234,7 +238,7 @@ Invoke-Action -Name "Eliminazione automatica vecchi account" -Description "Verr�
 
 Invoke-Action -Name "Impostazione dell'immagine UniPV" -Description "Verrà impostata l'immagine coordinata dell'Università di Pavia" -ScriptBlock {
 	# Cartella script
-	Set-Location $PSScriptRoot
+	Set-Location $Global:LocalScriptRoot
 
 	# Percorsi sorgente
 	$bg_path = Join-Path (Get-Location).Path "grafica_unipv\unipv_bg.jpg"
@@ -358,7 +362,7 @@ Invoke-Action -Name "Installazione di software Essenziali" -Description "Verrann
 	Install-Sw "Winget AutoUpdate" "Romanitho.Winget-AutoUpdate" $false
     # Configurazione Esclusioni per WAU
     $wauPath = "$env:ProgramData\WAU"
-    $exclusionFileSource = Join-Path $PSScriptRoot "excluded_apps.txt"
+    $exclusionFileSource = Join-Path $Global:LocalScriptRoot "excluded_apps.txt"
     $exclusionFileDest = Join-Path $wauPath "excluded_apps.txt"
 
     if (Test-ProgramPath $exclusionFileSource) {
@@ -463,7 +467,7 @@ switch ($decision) {
 		if ($OfficeInstalled) {
 			Write-Host "Office 2016 sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
 		} else {
-			$OfficePath = "$PSScriptRoot\Office Professional Plus 2016 64bit Ita\setup.exe"
+			$OfficePath = "$Global:LocalScriptRoot\Office Professional Plus 2016 64bit Ita\setup.exe"
 			if (Test-ProgramPath $OfficePath) {
 				Write-Host "Installazione interattiva di Office 2016, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
 				Start-Process $OfficePath -Wait
@@ -508,14 +512,14 @@ switch ($decision) {
 		if ($installed) {
 			Write-Host "$name sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
 		} else {
-			$path = "$PSScriptRoot\pgina\pGinaSetup.exe"
+			$path = "$Global:LocalScriptRoot\pgina\pGinaSetup.exe"
 			$dir = Split-Path $path
 			if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
 			Invoke-WebRequest -Uri "https://github.com/pgina/pgina/releases/download/v3.1.8.0/pGinaSetup-3.1.8.0.exe" -OutFile $path
 			if (Test-ProgramPath $path) {
 				Write-Host "Procedo con l'installazione di $name. Ricordati di chiuderlo per continuare lo script..." -ForegroundColor Cyan
 				Start-Process $path -Wait
-				Set-Location $PSScriptRoot
+				Set-Location $Global:LocalScriptRoot
 				$user_img_path = (Join-Path (Get-Location).Path "\grafica_unipv\unipv_logo_RGB.bmp")
 				Copy-Item $user_img_path -Destination "C:\unipv_logo_RGB.bmp" -Force
 				Write-Host "Installazione di $name completata." -ForegroundColor Green
@@ -530,14 +534,14 @@ switch ($decision) {
 		if ($installed) {
 			Write-Host "$name sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
 		} else {
-			$path = "$PSScriptRoot\pgina.fork\pGinaSetup.exe"
+			$path = "$Global:LocalScriptRoot\pgina.fork\pGinaSetup.exe"
 			$dir = Split-Path $path
 			if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
 			Invoke-WebRequest -Uri "https://github.com/MutonUfoAI/pgina/releases/download/3.9.9.12/pGinaSetup-3.9.9.12.exe" -OutFile $path
 			if (Test-ProgramPath $path) {
 				Write-Host "Procedo con l'installazione di $name. Ricordati di chiuderlo per continuare lo script..." -ForegroundColor Cyan
 				Start-Process $path -Wait
-				Set-Location $PSScriptRoot
+				Set-Location $Global:LocalScriptRoot
 				$user_img_path = (Join-Path (Get-Location).Path "\grafica_unipv\unipv_logo_RGB.bmp")
 				Copy-Item $user_img_path -Destination "C:\unipv_logo_RGB.bmp" -Force
 				Write-Host "Installazione di $name completata." -ForegroundColor Green
@@ -560,7 +564,7 @@ Invoke-Action -Name "Installazione di Supremo Control" -Description "Verrà inst
 	if ($installed) {
 		Write-Host "Supremo sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
 	} else {
-		$path = "$PSScriptRoot\supremo\supremo.exe"
+		$path = "$Global:LocalScriptRoot\supremo\supremo.exe"
 		$dir = Split-Path $path
 		if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
 		Invoke-WebRequest -Uri "https://www.nanosystems.it/public/download/Supremo.exe" -OutFile $path
@@ -576,7 +580,7 @@ Invoke-Action -Name "Installazione di Supremo Control" -Description "Verrà inst
 
 Invoke-Action -Name "Installazione di Stampante Canon iR C3226" -Description "Verrà installata la Stampante Canon iR C3226 di Scienze Motorie" -ScriptBlock {
 	$PortName = "Canon iR C3226 Scienze motorie"
-	$DriverPath = "$PSScriptRoot\Canon_IR_C3226_PCL6_Driver_V330_32_64_00\x64\Driver\CNP60MA64.INF"
+	$DriverPath = "$Global:LocalScriptRoot\Canon_IR_C3226_PCL6_Driver_V330_32_64_00\x64\Driver\CNP60MA64.INF"
 	$DriverModel = "Canon Generic Plus PCL6"
 	$IPAddress = "193.206.72.226"
 	$PrinterName = "Canon IR C3226"
@@ -617,7 +621,7 @@ Invoke-Action -Name "Installazione di Stampante Canon iR C3226" -Description "Ve
 
 Invoke-Action -Name "Installazione di Stampante HP LaserJet MFP E72425" -Description "Verrà installata la Stampante HP LaserJet MFP E72425 di Biostatistica" -ScriptBlock {
 	$PortName = "HP LaserJet MFP E72425 [44B668] Biostatistica"
-	$DriverPath = "$PSScriptRoot\LJE72425-E72430\hponef2a4_x64.inf"
+	$DriverPath = "$Global:LocalScriptRoot\LJE72425-E72430\hponef2a4_x64.inf"
 	$DriverModel = "HP LaserJet MFP E72425 E72430 PCL-6 (V4)"
 	$IPAddress = "193.206.68.205"
 	$PrinterName = "HP LaserJet MFP E72425"
