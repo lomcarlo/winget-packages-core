@@ -87,13 +87,19 @@ function Get-ScriptPath {
     }
 }
 
-# Recupera il percorso in cui l'utente ha lanciato il loader locale
-if ($Global:LocalScriptRoot == "") {
-    Write-Host (Show-CenteredBox -action "$$Global:LocalScriptRoot non presente Provo con Get-ScriptPath") -ForegroundColor Red
-	$Global:LocalScriptRoot = Get-ScriptPath
+# 1. Se la variabile globale non esiste o è vuota, prova i metodi di fallback
+if ([string]::IsNullOrEmpty($Global:LocalScriptRoot)) {
+    
+    # Visualizza il box di avviso (Corretto il doppio dollaro con il backtick di escape)
+    Write-Host (Show-CenteredBox -action "`$Global:LocalScriptRoot non presente. Provo con Get-ScriptPath" -rows 1) -ForegroundColor Red
+    
+    # Tenta il recupero locale (nota: la funzione Get-ScriptPath deve essere già dichiarata sopra nel codice)
+    $Global:LocalScriptRoot = Get-ScriptPath
 }
-if ($Global:LocalScriptRoot == "") {
-	Write-Host (Show-CenteredBox -action "Non funziona nemmeno Get-ScriptPath") -ForegroundColor Red
+
+# 2. Se è ancora vuota dopo il primo tentativo, manda il secondo avviso
+if ([string]::IsNullOrEmpty($Global:LocalScriptRoot)) {
+    Write-Host (Show-CenteredBox -action "Non funziona nemmeno Get-ScriptPath" -rows 1) -ForegroundColor Red
 }
 
 # Funzione per verificare l'esistenza di un programma nel percorso di installazione standard
