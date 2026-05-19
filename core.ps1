@@ -461,7 +461,7 @@ function Show-SubMenu {
         $installAllIndex = $itemIndex
         $itemIndex++
         
-        Write-Host "  [$itemIndex] Installa Tutti Senza Conferma" -ForegroundColor Red
+        Write-Host "  [$itemIndex] Installa Tutti (senza conferma)" -ForegroundColor Orange
         $installAllNoConfirmIndex = $itemIndex
         $itemIndex++
         
@@ -487,7 +487,7 @@ function Show-SubMenu {
         }
         # Opzione "Installa Tutti Senza Conferma"
         elseif ($itemIndex -eq $installAllNoConfirmIndex) {
-            Write-Host "`nInstallazione di tutti i software della categoria senza conferma..." -ForegroundColor Red
+            Write-Host "`nInstallazione di tutti i software della categoria senza conferma..." -ForegroundColor Orange
             foreach ($item in $items) {
                 # Verifica se lo scriptblock contiene una chiamata Install-Sw
                 $itemScriptString = $item.ScriptBlock.ToString()
