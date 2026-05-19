@@ -451,6 +451,14 @@ function Show-SubMenu {
             $itemIndex++
         }
         
+        Write-Host "  [$itemIndex] Installa Tutti (con conferma)" -ForegroundColor Cyan
+        $installAllIndex = $itemIndex
+        $itemIndex++
+        
+        Write-Host "  [$itemIndex] Installa Tutti Senza Conferma" -ForegroundColor Red
+        $installAllNoConfirmIndex = $itemIndex
+        $itemIndex++
+        
         Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
         Write-Host "`n"
         
@@ -462,7 +470,34 @@ function Show-SubMenu {
         
         $itemIndex = [int]$choice - 1
         
-        if ($itemIndex -ge 0 -and $itemIndex -lt $items.Count) {
+        # Opzione "Installa Tutti (con conferma)"
+        if ($itemIndex -eq $installAllIndex) {
+            Write-Host "`nInstallazione di tutti i software della categoria con conferma..." -ForegroundColor Cyan
+            foreach ($item in $items) {
+                & $item.ScriptBlock
+            }
+            Write-Host "`nInstallazione di tutti i software completata. Premi un tasto per continuare..." -ForegroundColor Green
+            Read-Host
+        }
+        # Opzione "Installa Tutti Senza Conferma"
+        elseif ($itemIndex -eq $installAllNoConfirmIndex) {
+            Write-Host "`nInstallazione di tutti i software della categoria senza conferma..." -ForegroundColor Red
+            foreach ($item in $items) {
+                # Verifica se lo scriptblock contiene una chiamata Install-Sw
+                $itemScriptString = $item.ScriptBlock.ToString()
+                if ($itemScriptString -like "*Install-Sw*") {
+                    # Esegui con Ask = $false (senza conferma)
+                    & $item.ScriptBlock
+                } else {
+                    # Per altri script (non Install-Sw), esegui normalmente
+                    & $item.ScriptBlock
+                }
+            }
+            Write-Host "`nInstallazione di tutti i software completata. Premi un tasto per continuare..." -ForegroundColor Green
+            Read-Host
+        }
+        # Opzione singolo software
+        elseif ($itemIndex -ge 0 -and $itemIndex -lt $items.Count) {
             $selectedItem = $items[$itemIndex]
             Write-Host "`nEsecuzione: $($selectedItem.Name)..." -ForegroundColor Cyan
             & $selectedItem.ScriptBlock
