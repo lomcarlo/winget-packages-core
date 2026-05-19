@@ -307,6 +307,7 @@ $MenuItems = @{
         @{ Name = "Microsoft Teams"; ScriptBlock = { Install-Sw "Microsoft Teams" "XP8BT8DW290MPQ" } }
         @{ Name = "Adobe Acrobat Reader"; ScriptBlock = { Install-Sw "Adobe Acrobat Reader" "Adobe.Acrobat.Reader.64-bit" } }
         @{ Name = "WhatsApp"; ScriptBlock = { Install-Sw "WhatsApp" "9NKSQGP7F2NH" } }
+		@{ Name = "PDFsam Basic"; ScriptBlock = { Install-Sw "PDFsam Basic" "PDFsam.PDFsam" } }
     )
     
     "SOFTWARE UTILITÀ" = @(
