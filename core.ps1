@@ -107,7 +107,7 @@ function Test-ProgramPath {
     param(
         [string]$Path
     )
-	if(!$Path) {
+	if([string]::IsNullOrEmpty($Path)) {
 		return false
 	}else{
 		return Test-Path $Path
