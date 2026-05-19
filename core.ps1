@@ -1,4 +1,4 @@
-﻿# 1. Gestione finestra precedente
+# 1. Gestione finestra precedente
 $WindowTitle = "*powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Maximized -File*"
 $ParentProcess = Get-Process | Where-Object { $_.MainWindowTitle -like $WindowTitle }
 if ($ParentProcess) { $ParentProcess | Stop-Process -Force }
