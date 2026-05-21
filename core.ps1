@@ -18,7 +18,6 @@ function Show-CenteredBox {
 
     $width = 78  # Larghezza interna della cornice
     $lines = $action -split "`r`n"
-    $outputLines = @()
 
     # 1. Costruzione del bordo superiore
     $result = "╔$($('═' * $width))╗`r`n"
@@ -319,25 +318,31 @@ $MenuItems = @{
         @{ Name = "Google Drive"; ScriptBlock = { Install-Sw "Google Drive" "Google.GoogleDrive" } }
         @{ Name = "Google Chrome"; ScriptBlock = { Install-Sw "Google Chrome" "Google.Chrome" } }
         @{ Name = "7zip"; ScriptBlock = { Install-Sw "7zip" "7zip.7zip" } }
-        @{ Name = "Zoom"; ScriptBlock = { Install-Sw "Zoom Workplace" "Zoom.Zoom" } }
-        @{ Name = "VLC Player"; ScriptBlock = { Install-Sw "VLC Video Player" "VLC.VLC" } }
+        @{ Name = "Zoom Workplace"; ScriptBlock = { Install-Sw "Zoom Workplace" "Zoom.Zoom" } }
     )
     
     "SOFTWARE OFFICE & COMUNICAZIONE" = @(
 		@{ Name = "Microsoft 365 Copilot"; ScriptBlock = { Install-Sw "Microsoft 365 Copilot" "9WZDNCRD29V9" } }
+        @{ Name = "Microsoft Office"; ScriptBlock = { Show-OfficeMenu } }
         @{ Name = "Microsoft Teams"; ScriptBlock = { Install-Sw "Microsoft Teams" "XP8BT8DW290MPQ" } }
         @{ Name = "Adobe Acrobat Reader"; ScriptBlock = { Install-Sw "Adobe Acrobat Reader" "Adobe.Acrobat.Reader.64-bit" } }
+        @{ Name = "LibreOffice"; ScriptBlock = { Install-Sw "LibreOffice" "TheDocumentFoundation.LibreOffice" } }
         @{ Name = "WhatsApp"; ScriptBlock = { Install-Sw "WhatsApp" "9NKSQGP7F2NH" } }
 		@{ Name = "PDFsam Basic"; ScriptBlock = { Install-Sw "PDFsam Basic" "PDFsam.PDFsam" } }
+		@{ Name = "Firma Digitale InfoCamiere"; ScriptBlock = { Install-Sw "Firma Digitale InfoCamiere" "Bit4id.Firma4ng.InfoCamiere" } }
 		@{ Name = "Eset Security (Antivirus)"; ScriptBlock = { Install-Sw "Eset Security (Antivirus)" "ESET.Nod32" } }
     )
     
     "SOFTWARE UTILITÀ" = @(
+        @{ Name = "ShareX"; ScriptBlock = { Install-Sw "ShareX" "ShareX.ShareX" } }
+        @{ Name = "Everything"; ScriptBlock = { Install-Sw "Everything" "voidtools.Everything" } }
+        @{ Name = "KeePassXC"; ScriptBlock = { Install-Sw "KeePassXC" "KeePassXCTeam.KeePassXC" } }
         @{ Name = "Notepad++"; ScriptBlock = { Install-Sw "Notepad++" "Notepad++.Notepad++" } }
         @{ Name = "Mendeley Reference Manager"; ScriptBlock = { Install-Sw "Mendeley Reference Manager" "Elsevier.MendeleyReferenceManager" } }
         @{ Name = "Advanced Renamer"; ScriptBlock = { Install-Sw "Advanced Renamer" "HulubuluSoftware.AdvancedRenamer" } }
 		@{ Name = "AutoHotkey"; ScriptBlock = { Download-Install-Sw "AutoHotkey", "https://www.autohotkey.com/download/ahk-v2.exe", "C:\Program Files\AutoHotkey\UX\AutoHotkeyUX.exe" } }
-		@{ Name = "Firma Digitale InfoCamiere"; ScriptBlock = { Install-Sw "Firma Digitale InfoCamiere" "Bit4id.Firma4ng.InfoCamiere" } }
+        @{ Name = "VirtualBox"; ScriptBlock = { Install-Sw "VirtualBox" "Oracle.VirtualBox" }}
+        @{ Name = "WinSCP"; ScriptBlock = { Install-Sw "WinSCP" "WinSCP.WinSCP" } }
     )
     
     "SOFTWARE STATISTICI" = @(
@@ -352,11 +357,12 @@ $MenuItems = @{
     
     "MULTIMEDIA" = @(
         @{ Name = "Audacity"; ScriptBlock = { Install-Sw "Audacity" "Audacity.Audacity" } }
-        @{ Name = "Gimp"; ScriptBlock = { Install-Sw "Gimp" "GIMP.GIMP.3" } }
-        @{ Name = "K-Lite Codec Pack"; ScriptBlock = { Install-Sw "K-Lite Codec Pack Standard" "CodecGuide.K-LiteCodecPack.Standard" } }
         @{ Name = "Avidemux"; ScriptBlock = { Install-Sw "Avidemux (Montaggio Video)" "Avidemux.Avidemux" } }
-        @{ Name = "OBS Studio"; ScriptBlock = { Install-Sw "OBS Studio (Registrazione dello schermo)" "OBSProject.OBSStudio" } }
 		@{ Name = "DaVinci Resolve"; ScriptBlock = { Download-Install-Sw "DaVinci Resolve", "https://swr.cloud.blackmagicdesign.com/DaVinciResolve/v20.3.2/DaVinci_Resolve_Studio_20.3.2_Windows.zip", "C:\Program Files\Blackmagic Design\DaVinci Resolve\DaVinci Resolve.exe" } }
+        @{ Name = "Gimp"; ScriptBlock = { Install-Sw "Gimp" "GIMP.GIMP.3" } }
+        @{ Name = "K-Lite Codec Pack Standard"; ScriptBlock = { Install-Sw "K-Lite Codec Pack Standard" "CodecGuide.K-LiteCodecPack.Standard" } }
+        @{ Name = "OBS Studio"; ScriptBlock = { Install-Sw "OBS Studio (Registrazione dello schermo)" "OBSProject.OBSStudio" } }
+        @{ Name = "VLC Player"; ScriptBlock = { Install-Sw "VLC Video Player" "VLC.VLC" } }
     )
     
     "SOFTWARE 3D" = @(
@@ -364,11 +370,20 @@ $MenuItems = @{
 		@{ Name = "PrusaSlicer"; ScriptBlock = { Install-Sw "PrusaSlicer" "Prusa3D.PrusaSlicer" } }
         @{ Name = "OpenSCAD"; ScriptBlock = { Install-Sw "OpenSCAD" "OpenSCAD.OpenSCAD" } }
         @{ Name = "Shapr3D"; ScriptBlock = { Install-Sw "Shapr3D" "Shapr3D.Shapr3D" } }
+        @{ Name = "Blender"; ScriptBlock = { Install-Sw "Blender" "Blender.Blender" } }
+        @{ Name = "Meshmixer"; ScriptBlock = { Install-Sw "Meshmixer" "Autodesk.Meshmixer" } }
+        @{ Name = "Ultimaker Cura"; ScriptBlock = { Install-Sw "Ultimaker Cura" "Ultimaker.Cura" } }
     )
     
     "SOFTWARE PROGRAMMAZIONE" = @(
+        @{ Name = "draw.io"; ScriptBlock = { Install-Sw "draw.io" "jgraph.drawio" } }
         @{ Name = "Visual Studio Code"; ScriptBlock = { Install-Sw "Microsoft Visual Studio Code" "Microsoft.VisualStudioCode" } }
         @{ Name = "Docker Desktop"; ScriptBlock = { Install-Sw "Docker Desktop" "Docker.DockerDesktop" } }
+        @{ Name = "GitHub Desktop"; ScriptBlock = { Install-Sw "GitHub Desktop" "GitHub.GitHubDesktop" } }
+        @{ Name = "Node.js"; ScriptBlock = { Install-Sw "Node.js LTS" "OpenJSFoundation.NodeJS.LTS" } }
+        @{ Name = "FileZilla"; ScriptBlock = { Install-Sw "FileZilla" "FileZilla.FileZilla.Client" } }
+        @{ Name = "Postman"; ScriptBlock = { Install-Sw "Postman" "Postman.Postman" } }
+        @{ Name = "XAMPP"; ScriptBlock = { Download-Install-Sw "XAMPP", "https://www.apachefriends.org/xampp-files/8.2.4/xampp-windows-x64-8.2.4-0-VS16-installer.exe", "C:\xampp\xampp-control.exe" } }
     )
     
     "STAMPANTI" = @(
