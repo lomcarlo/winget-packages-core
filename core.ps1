@@ -184,7 +184,7 @@ function Install-Sw {
     param(
         [string]$Name,
         [string]$Id,
-        [bool]$Ask = $false,
+        [bool]$Ask = $true,
         [string]$Source = "winget"
     )
 
@@ -207,6 +207,41 @@ function Install-Sw {
         }
         1 {
             Write-Host "Installazione di $Name saltata." -ForegroundColor Yellow
+        }
+        2 {
+            Write-Host "Uscita in corso..." -ForegroundColor Red
+            exit 
+        }
+    }
+}
+
+function Uninstall-Sw {
+    param(
+        [string]$Name,
+        [string]$Id,
+        [string]$Source = "winget"
+    )
+
+    $title = Show-CenteredBox -action "Disinstallazione di $Name"
+    $message = "Vuoi procedere con la disinstallazione?"
+    
+    # Usiamo le scelte standard Sì/No/Esci
+    $decision = $host.UI.PromptForChoice($title, $message, $choices, 1)
+
+    switch ($decision) {
+        0 {
+            Write-Host "Procedo con la disinstallazione di $Name..." -ForegroundColor Cyan
+            # Verifica se il pacchetto è installato prima di tentare la rimozione
+            $installedPackage = winget list --id $Id --source $Source
+            if ($installedPackage) {
+                winget uninstall --id $Id --source $Source --accept-source-agreements --silent
+                Write-Host "Disinstallazione di $Name completata." -ForegroundColor Green
+            } else {
+                Write-Host "$Name non risulta installato. Operazione saltata." -ForegroundColor Yellow
+            }
+        }
+        1 {
+            Write-Host "Disinstallazione di $Name saltata." -ForegroundColor Yellow
         }
         2 {
             Write-Host "Uscita in corso..." -ForegroundColor Red
@@ -297,6 +332,21 @@ $MenuItems = @{
                 }
             }
         }}
+        @{ Name = "Abilitazione account Administrator"; ScriptBlock = {
+            $adminUser = "Administrator"
+            $adminAccount = Get-LocalUser -Name $adminUser -ErrorAction SilentlyContinue
+            if ($adminAccount) {
+                if ($adminAccount.Enabled) {
+                    Write-Host "L'account '$adminUser' è già abilitato." -ForegroundColor Yellow
+                } else {
+                    Enable-LocalUser -Name $adminUser
+                    Write-Host "L'account '$adminUser' è stato abilitato." -ForegroundColor Green
+                }
+            } else {
+                Write-Host "L'account '$adminUser' non esiste." -ForegroundColor Red
+            }
+        }}
+        @{ Name = "pGina (Login alternativo)"; ScriptBlock = { Show-PGinaMenu } }
     )
     
     "SOFTWARE ESSENZIALI" = @(
@@ -387,6 +437,13 @@ $MenuItems = @{
     )
     
     "STAMPANTI" = @(
+        @{ Name = "pGina (Login alternativo)"; ScriptBlock = { Show-PGinaMenu } }
+        @{ Name = "Microsoft Office"; ScriptBlock = { Show-OfficeMenu } }
+        @{ Name = "Supremo Control"; ScriptBlock = {
+            Invoke-Action -Name "Installazione di Supremo Control" -Description "Verrà installato il software di accesso remoto Supremo Control" -ScriptBlock {
+                Download-Install-Sw "Supremo Control" "https://www.nanosystems.it/public/download/Supremo.exe" "C:\Program Files (x86)\Supremo\Supremo.exe"
+            }
+        }}
         @{ Name = "Stampante Canon iR C3226"; ScriptBlock = {
             $PortName = "Canon iR C3226 Scienze motorie"
             $DriverPath = "$Global:LocalScriptRoot\Canon_IR_C3226_PCL6_Driver_V330_32_64_00\x64\Driver\CNP60MA64.INF"
@@ -434,6 +491,50 @@ $MenuItems = @{
             }
         }}
     )
+
+    "DISINSTALLAZIONE SOFTWARE" = @(
+        @{ Name = "pGina (originale)"; ScriptBlock = { Uninstall-Sw "pGina (originale)" "pGina.pGina" } }
+        @{ Name = "pGina (fork)"; ScriptBlock = { Uninstall-Sw "pGina (fork)" "pGina.fork" } }
+        @{ Name = "Microsoft Office 365"; ScriptBlock = { Uninstall-Sw "Microsoft Office 365" "Microsoft.Office" } }
+        @{ Name = "AutoHotkey"; ScriptBlock = { Uninstall-Sw "AutoHotkey" "AutoHotkey.AutoHotkey" } }
+        @{ Name = "Google Drive"; ScriptBlock = { Uninstall-Sw "Google Drive" "Google.GoogleDrive" } }
+        @{ Name = "Google Chrome"; ScriptBlock = { Uninstall-Sw "Google Chrome" "Google.Chrome" } }
+        @{ Name = "7zip"; ScriptBlock = { Uninstall-Sw "7zip" "7zip.7zip" } }
+        @{ Name = "Zoom Workplace"; ScriptBlock = { Uninstall-Sw "Zoom Workplace" "Zoom.Zoom" } }
+        @{ Name = "Microsoft Teams"; ScriptBlock = { Uninstall-Sw "Microsoft Teams" "XP8BT8DW290MPQ" } }
+        @{ Name = "Adobe Acrobat Reader"; ScriptBlock = { Uninstall-Sw "Adobe Acrobat Reader" "Adobe.Acrobat.Reader.64-bit" } }
+        @{ Name = "LibreOffice"; ScriptBlock = { Uninstall-Sw "LibreOffice" "TheDocumentFoundation.LibreOffice" } }
+        @{ Name = "WhatsApp"; ScriptBlock = { Uninstall-Sw "WhatsApp" "9NKSQGP7F2NH" } }
+        @{ Name = "PDFsam Basic"; ScriptBlock = { Uninstall-Sw "PDFsam Basic" "PDFsam.PDFsam" } }
+        @{ Name = "Eset Security (Antivirus)"; ScriptBlock = { Uninstall-Sw "Eset Security (Antivirus)" "ESET.Nod32" } }
+        @{ Name = "ShareX"; ScriptBlock = { Uninstall-Sw "ShareX" "ShareX.ShareX" } }
+        @{ Name = "Everything"; ScriptBlock = { Uninstall-Sw "Everything" "voidtools.Everything" } }
+        @{ Name = "KeePassXC"; ScriptBlock = { Uninstall-Sw "KeePassXC" "KeePassXCTeam.KeePassXC" } }
+        @{ Name = "Notepad++"; ScriptBlock = { Uninstall-Sw "Notepad++" "Notepad++.Notepad++" } }
+        @{ Name = "Mendeley Reference Manager"; ScriptBlock = { Uninstall-Sw "Mendeley Reference Manager" "Elsevier.MendeleyReferenceManager" } }
+        @{ Name = "Advanced Renamer"; ScriptBlock = { Uninstall-Sw "Advanced Renamer" "HulubuluSoftware.AdvancedRenamer" } }
+        @{ Name = "VirtualBox"; ScriptBlock = { Uninstall-Sw "VirtualBox" "Oracle.VirtualBox" }}
+        @{ Name = "WinSCP"; ScriptBlock = { Uninstall-Sw "WinSCP" "WinSCP.WinSCP" } }
+        @{ Name = "JASP"; ScriptBlock = { Uninstall-Sw "JASP" "UniversityOfAmsterdam.JASP" } }
+        @{ Name = "R Project"; ScriptBlock = { Uninstall-Sw "R Project" "RProject.R" } }
+        @{ Name = "GPower"; ScriptBlock = { Uninstall-Sw "GPower" "GPower.GPower" } }
+        @{ Name = "RStudio"; ScriptBlock = { Uninstall-Sw "RStudio" "Posit.RStudio" } }
+        @{ Name = "Orange"; ScriptBlock = { Uninstall-Sw "Orange" "UniversityOfLjubljana.Orange" } }
+        @{ Name = "Python"; ScriptBlock = { Uninstall-Sw "Python" "Python.Launcher" } }
+        @{ Name = "Jupyter Notebook"; ScriptBlock = { Uninstall-Sw "Jupyter Notebook" "ProjectJupyter.JupyterLab" } }
+        @{ Name = "Audacity"; ScriptBlock = { Uninstall-Sw "Audacity" "Audacity.Audacity" } }
+        @{ Name = "Avidemux"; ScriptBlock = { Uninstall-Sw "Avidemux (Montaggio Video)" "Avidemux.Avidemux" } }
+        @{ Name = "Gimp"; ScriptBlock = { Uninstall-Sw "Gimp" "GIMP.GIMP.3" } }
+        @{ Name = "K-Lite Codec Pack Standard"; ScriptBlock = { Uninstall-Sw "K-Lite Codec Pack Standard" "CodecGuide.K-LiteCodecPack.Standard" } }
+        @{ Name = "OBS Studio"; ScriptBlock = { Uninstall-Sw "OBS Studio (Registrazione dello schermo)" "OBSProject.OBSStudio" } }
+        @{ Name = "VLC Player"; ScriptBlock = { Uninstall-Sw "VLC Video Player" "VLC.VLC" } }
+        @{ Name = "Visual Studio Code"; ScriptBlock = { Uninstall-Sw "Microsoft Visual Studio Code" "Microsoft.VisualStudioCode" } }
+        @{ Name = "FileZilla"; ScriptBlock = { Uninstall-Sw "FileZilla" "FileZilla.FileZilla.Client" } }
+        @{ Name = "PrusaSlicer"; ScriptBlock = { Uninstall-Sw "PrusaSlicer" "Prusa3D.PrusaSlicer" } }
+        @{ Name = "OpenSCAD"; ScriptBlock = { Uninstall-Sw "OpenSCAD" "OpenSCAD.OpenSCAD" } }
+        @{ Name = "Blender"; ScriptBlock = { Uninstall-Sw "Blender" "Blender.Blender" } }
+        @{ Name = "Ultimaker Cura"; ScriptBlock = { Uninstall-Sw "Ultimaker Cura" "Ultimaker.Cura" } }
+    )
 }
 
 # ============================================================================
@@ -457,9 +558,10 @@ function Show-MainMenu {
         
         Write-Host "  [0] Esci" -ForegroundColor Red
         Write-Host "`n"
-        $choice = Read-Host "Seleziona una categoria (numero)"
+        $choice = Read-Host "Seleziona una categoria (0 per uscire)"
         
-        if ($choice -eq "0") {
+        # Se l'utente preme Invio o digita 0, esce
+        if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq "0") {
             Write-Host "Uscita in corso..." -ForegroundColor Red
             exit
         }
@@ -504,16 +606,17 @@ function Show-SubMenu {
         Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
         Write-Host "`n"
         
-        $choice = Read-Host "Seleziona un'opzione (numero)"
-        
-        if ($choice -eq "0") {
-            return
+        $choice = Read-Host "Seleziona una o più opzioni (es. 1,3,5) o 0 per tornare indietro"
+
+        # Se l'utente preme Invio senza inserire nulla, torna al menu principale
+        if ([string]::IsNullOrWhiteSpace($choice)) {
+            return # Esce dal sottomenu
         }
         
-        $itemIndex = [int]$choice - 1
+        $singleChoice = -1
+        [void]($choice -match '^\d+$' -and [int]::TryParse($choice, [ref]$singleChoice))
         
-        # Opzione "Installa Tutti (con conferma)"
-        if ($itemIndex -eq $installAllIndex) {
+        if ($singleChoice -eq $installAllIndex + 1) {
             Write-Host "`nInstallazione di tutti i software della categoria con conferma..." -ForegroundColor Cyan
             foreach ($item in $items) {
                 & $item.ScriptBlock
@@ -521,15 +624,13 @@ function Show-SubMenu {
             Write-Host "`nInstallazione di tutti i software completata. Premi un tasto per continuare..." -ForegroundColor Green
             Read-Host
         }
-        # Opzione "Installa Tutti Senza Conferma"
-        elseif ($itemIndex -eq $installAllNoConfirmIndex) {
+        elseif ($singleChoice -eq $installAllNoConfirmIndex + 1) {
             Write-Host "`nInstallazione di tutti i software della categoria senza conferma..." -ForegroundColor DarkRed
             foreach ($item in $items) {
                 # Verifica se lo scriptblock contiene una chiamata Install-Sw
                 $itemScriptString = $item.ScriptBlock.ToString()
                 if ($itemScriptString -like "*Install-Sw*") {
-                    # Esegui con Ask = $false (senza conferma)
-                    & $item.ScriptBlock
+                    Invoke-Command -ScriptBlock ([scriptblock]::Create($itemScriptString.Replace("{", "").Replace("}", "").Trim() + " -Ask `$false"))
                 } else {
                     # Per altri script (non Install-Sw), esegui normalmente
                     & $item.ScriptBlock
@@ -538,15 +639,27 @@ function Show-SubMenu {
             Write-Host "`nInstallazione di tutti i software completata. Premi un tasto per continuare..." -ForegroundColor Green
             Read-Host
         }
-        # Opzione singolo software
-        elseif ($itemIndex -ge 0 -and $itemIndex -lt $items.Count) {
-            $selectedItem = $items[$itemIndex]
-            Write-Host "`nEsecuzione: $($selectedItem.Name)..." -ForegroundColor Cyan
-            & $selectedItem.ScriptBlock
-            Write-Host "`nOperazione completata. Premi un tasto per continuare..." -ForegroundColor Green
-            Read-Host
-        } else {
-            Write-Host "Scelta non valida. Premi un tasto per continuare..." -ForegroundColor Red
+        else {
+            # Gestione selezione multipla (es. "1,3,5") o singola
+            $selectedIndices = $choice -split ',' | ForEach-Object {
+                $num = 0
+                if ([int]::TryParse($_.Trim(), [ref]$num)) { $num - 1 }
+            }
+
+            $validSelections = $false
+            foreach ($index in $selectedIndices) {
+                if ($index -ge 0 -and $index -lt $items.Count) {
+                    $validSelections = $true
+                    $selectedItem = $items[$index]
+                    Write-Host "`nEsecuzione: $($selectedItem.Name)..." -ForegroundColor Cyan
+                    & $selectedItem.ScriptBlock
+                }
+            }
+
+            if (-not $validSelections) {
+                Write-Host "Scelta non valida. Premi un tasto per continuare..." -ForegroundColor Red
+            }
+            Write-Host "`nOperazioni completate. Premi un tasto per continuare..." -ForegroundColor Green
             Read-Host
         }
         
@@ -688,41 +801,5 @@ function Show-PGinaMenu {
 # AVVIA IL MENU
 # ============================================================================
 Show-MainMenu
-
-# Dopo il menu principale, offri i software aggiuntivi
-Write-Host (Show-CenteredBox -action "SOFTWARE AGGIUNTIVO" -rows 2) -ForegroundColor Cyan
-Write-Host "`n"
-
-# Microsoft Office
-Invoke-Action -Name "Installazione di Microsoft Office" -Description "Verrà installata la versione scelta di Microsoft Office (365 o 2016)" -Rows 2 -ScriptBlock {
-    Show-OfficeMenu
-}
-
-# pGina
-Invoke-Action -Name "Installazione di pGina" -Description "Verrà installata la versione scelta di pGina (originale o fork) per accesso LDAP" -Rows 2 -ScriptBlock {
-    Show-PGinaMenu
-}
-
-# Supremo Control
-Invoke-Action -Name "Installazione di Supremo Control" -Description "Verrà installato il software di accesso remoto Supremo Control" -ScriptBlock {
-    $installed = Test-ProgramPath "C:\Program Files (x86)\Supremo\Supremo.exe"
-    if ($installed) {
-        Write-Host "Supremo sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
-    } else {
-        $path = "$Global:LocalScriptRoot\supremo\supremo.exe"
-        $dir = Split-Path $path
-        if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
-        Write-Host "Download di Supremo in corso..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri "https://www.nanosystems.it/public/download/Supremo.exe" -OutFile $path
-        if (Test-ProgramPath $path) {
-            Write-Host "Procedo con l'installazione di Supremo. Ricordati di chiuderlo per continuare lo script..." -ForegroundColor Cyan
-            Start-Process $path -Wait
-            Write-Host "Installazione di Supremo completata." -ForegroundColor Green
-        } else {
-            Write-Warning "File di installazione non trovato al percorso $path. Salto l'installazione."
-        }
-    }
-}
-
 Write-Host (Show-CenteredBox -action "INSTALLAZIONE COMPLETATA" -rows 3) -ForegroundColor Green
 pause
