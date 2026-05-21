@@ -315,6 +315,7 @@ $MenuItems = @{
                 Write-Host "File excluded_apps.txt configurato." -ForegroundColor Green
             }
         }}
+        @{ Name = "WAU Settings GUI"; ScriptBlock = { Install-Sw "WAU Settings GUI" "KnifMelti.WAU-Settings-GUI" } }
         @{ Name = "Google Drive"; ScriptBlock = { Install-Sw "Google Drive" "Google.GoogleDrive" } }
         @{ Name = "Google Chrome"; ScriptBlock = { Install-Sw "Google Chrome" "Google.Chrome" } }
         @{ Name = "7zip"; ScriptBlock = { Install-Sw "7zip" "7zip.7zip" } }
@@ -328,6 +329,7 @@ $MenuItems = @{
         @{ Name = "Adobe Acrobat Reader"; ScriptBlock = { Install-Sw "Adobe Acrobat Reader" "Adobe.Acrobat.Reader.64-bit" } }
         @{ Name = "WhatsApp"; ScriptBlock = { Install-Sw "WhatsApp" "9NKSQGP7F2NH" } }
 		@{ Name = "PDFsam Basic"; ScriptBlock = { Install-Sw "PDFsam Basic" "PDFsam.PDFsam" } }
+		@{ Name = "Eset Security (Antivirus)"; ScriptBlock = { Install-Sw "Eset Security (Antivirus)" "ESET.Nod32" } }
     )
     
     "SOFTWARE UTILITÀ" = @(
@@ -335,7 +337,7 @@ $MenuItems = @{
         @{ Name = "Mendeley Reference Manager"; ScriptBlock = { Install-Sw "Mendeley Reference Manager" "Elsevier.MendeleyReferenceManager" } }
         @{ Name = "Advanced Renamer"; ScriptBlock = { Install-Sw "Advanced Renamer" "HulubuluSoftware.AdvancedRenamer" } }
 		@{ Name = "AutoHotkey"; ScriptBlock = { Download-Install-Sw "AutoHotkey", "https://www.autohotkey.com/download/ahk-v2.exe", "C:\Program Files\AutoHotkey\UX\AutoHotkeyUX.exe" } }
-		@{ Name = "Firma Digitale InfoCamere"; ScriptBlock = { Install-Sw "Firma Digitale InfoCamere" "Bit4id.Firma4ng.InfoCamere" } }
+		@{ Name = "Firma Digitale InfoCamiere"; ScriptBlock = { Install-Sw "Firma Digitale InfoCamiere" "Bit4id.Firma4ng.InfoCamiere" } }
     )
     
     "SOFTWARE STATISTICI" = @(
@@ -354,11 +356,11 @@ $MenuItems = @{
         @{ Name = "K-Lite Codec Pack"; ScriptBlock = { Install-Sw "K-Lite Codec Pack Standard" "CodecGuide.K-LiteCodecPack.Standard" } }
         @{ Name = "Avidemux"; ScriptBlock = { Install-Sw "Avidemux (Montaggio Video)" "Avidemux.Avidemux" } }
         @{ Name = "OBS Studio"; ScriptBlock = { Install-Sw "OBS Studio (Registrazione dello schermo)" "OBSProject.OBSStudio" } }
-		@{ Name = "DaVinci Resolve"; ScriptBlock = { Download-Install-Sw "DaVinci Resolve", "https://swr.cloud.blackmagicdesign.com/DaVinciResolve/v20.3.2/DaVinci_Resolve_Studio_20.3.2_Windows.zip?verify=1776845685-WkzawoQH%2BTwhVO2ezjJekuc7OfwHTj1tEGxsSefc5L0%3D", "C:\Program Files\Blackmagic Design\DaVinci Resolve\Resolve.exe" } }
+		@{ Name = "DaVinci Resolve"; ScriptBlock = { Download-Install-Sw "DaVinci Resolve", "https://swr.cloud.blackmagicdesign.com/DaVinciResolve/v20.3.2/DaVinci_Resolve_Studio_20.3.2_Windows.zip", "C:\Program Files\Blackmagic Design\DaVinci Resolve\DaVinci Resolve.exe" } }
     )
     
     "SOFTWARE 3D" = @(
-        @{ Name = "Fusion 360"; ScriptBlock = { Download-Install-Sw "Fusion 360", "https://dl.appstreaming.autodesk.com/production/installers/Fusion%20Client%20Downloader.exe", "$env:LOCALAPPDATA\Autodesk\webdeploy\production\" } }
+        @{ Name = "Fusion 360"; ScriptBlock = { Download-Install-Sw "Fusion 360", "https://dl.appstreaming.autodesk.com/production/installers/Fusion%20Client%20Downloader.exe", "$env:LOCALAPPDATA\Autodesk\webdeploy\production\Fusion360.exe" } }
 		@{ Name = "PrusaSlicer"; ScriptBlock = { Install-Sw "PrusaSlicer" "Prusa3D.PrusaSlicer" } }
         @{ Name = "OpenSCAD"; ScriptBlock = { Install-Sw "OpenSCAD" "OpenSCAD.OpenSCAD" } }
         @{ Name = "Shapr3D"; ScriptBlock = { Install-Sw "Shapr3D" "Shapr3D.Shapr3D" } }
