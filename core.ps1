@@ -373,7 +373,6 @@ $MenuItems = @{
     
     "SOFTWARE OFFICE & COMUNICAZIONE" = @(
 		@{ Name = "Microsoft 365 Copilot"; ScriptBlock = { Install-Sw "Microsoft 365 Copilot" "9WZDNCRD29V9" } }
-        @{ Name = "Microsoft Office"; ScriptBlock = { Show-OfficeMenu } }
         @{ Name = "Microsoft Teams"; ScriptBlock = { Install-Sw "Microsoft Teams" "XP8BT8DW290MPQ" } }
         @{ Name = "Adobe Acrobat Reader"; ScriptBlock = { Install-Sw "Adobe Acrobat Reader" "Adobe.Acrobat.Reader.64-bit" } }
         @{ Name = "LibreOffice"; ScriptBlock = { Install-Sw "LibreOffice" "TheDocumentFoundation.LibreOffice" } }
@@ -382,7 +381,30 @@ $MenuItems = @{
 		@{ Name = "Firma Digitale InfoCamiere"; ScriptBlock = { Install-Sw "Firma Digitale InfoCamiere" "Bit4id.Firma4ng.InfoCamiere" } }
 		@{ Name = "Eset Security (Antivirus)"; ScriptBlock = { Install-Sw "Eset Security (Antivirus)" "ESET.Nod32" } }
     )
-    
+
+    "MICROSOFT OFFICE" = @(
+        @{ Name = "Microsoft 365"; ScriptBlock = {
+            Write-Host "Installazione interattiva di Office 365, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
+            winget install -e --id Microsoft.Office --source winget --accept-package-agreements
+            Write-Host "Installazione di Office 365 completata." -ForegroundColor Green
+        }}
+        @{ Name = "Microsoft Office 2016 Professional Plus"; ScriptBlock = {
+            $OfficeInstalled = Test-ProgramPath "C:\Program Files\Microsoft Office\Office16\WINWORD.EXE" -or Test-ProgramPath "C:\Program Files (x86)\Microsoft Office\Office16\WINWORD.EXE"
+            if ($OfficeInstalled) {
+                Write-Host "Office 2016 sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
+            } else {
+                $OfficePath = "$Global:LocalScriptRoot\Office Professional Plus 2016 64bit Ita\setup.exe"
+                if (Test-ProgramPath $OfficePath) {
+                    Write-Host "Installazione interattiva di Office 2016, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
+                    Start-Process $OfficePath -Wait
+                    Write-Host "Installazione di Office 2016 completata. Ricordati di inserire la chiave di licenza." -ForegroundColor Green
+                } else {
+                    Write-Warning "File di installazione di Office 2016 non trovato al percorso $OfficePath. Salto l'installazione."
+                }
+            }
+        }}
+    )
+        
     "SOFTWARE UTILITÀ" = @(
         @{ Name = "ShareX"; ScriptBlock = { Install-Sw "ShareX" "ShareX.ShareX" } }
         @{ Name = "Everything"; ScriptBlock = { Install-Sw "Everything" "voidtools.Everything" } }
@@ -393,6 +415,8 @@ $MenuItems = @{
 		@{ Name = "AutoHotkey"; ScriptBlock = { Download-Install-Sw "AutoHotkey", "https://www.autohotkey.com/download/ahk-v2.exe", "C:\Program Files\AutoHotkey\UX\AutoHotkeyUX.exe" } }
         @{ Name = "VirtualBox"; ScriptBlock = { Install-Sw "VirtualBox" "Oracle.VirtualBox" }}
         @{ Name = "WinSCP"; ScriptBlock = { Install-Sw "WinSCP" "WinSCP.WinSCP" } }
+        @{ Name = "pGina (Login alternativo)"; ScriptBlock = { Show-PGinaMenu } }
+        @{ Name = "Supremo Control"; ScriptBlock = { Download-Install-Sw "Supremo Control" "https://www.nanosystems.it/public/download/Supremo.exe" "C:\Program Files (x86)\Supremo\Supremo.exe" } }
     )
     
     "SOFTWARE STATISTICI" = @(
@@ -437,13 +461,6 @@ $MenuItems = @{
     )
     
     "STAMPANTI" = @(
-        @{ Name = "pGina (Login alternativo)"; ScriptBlock = { Show-PGinaMenu } }
-        @{ Name = "Microsoft Office"; ScriptBlock = { Show-OfficeMenu } }
-        @{ Name = "Supremo Control"; ScriptBlock = {
-            Invoke-Action -Name "Installazione di Supremo Control" -Description "Verrà installato il software di accesso remoto Supremo Control" -ScriptBlock {
-                Download-Install-Sw "Supremo Control" "https://www.nanosystems.it/public/download/Supremo.exe" "C:\Program Files (x86)\Supremo\Supremo.exe"
-            }
-        }}
         @{ Name = "Stampante Canon iR C3226"; ScriptBlock = {
             $PortName = "Canon iR C3226 Scienze motorie"
             $DriverPath = "$Global:LocalScriptRoot\Canon_IR_C3226_PCL6_Driver_V330_32_64_00\x64\Driver\CNP60MA64.INF"
@@ -551,7 +568,7 @@ function Show-MainMenu {
         $categories = @()
         
         foreach ($category in $MenuItems.Keys) {
-            Write-Host "  [$categoryIndex] $category" -ForegroundColor Yellow
+            if ($category -ne "MICROSOFT OFFICE") { Write-Host "  [$categoryIndex] $category" -ForegroundColor Yellow }
             $categories += $category
             $categoryIndex++
         }
@@ -569,7 +586,7 @@ function Show-MainMenu {
         $categoryIndex = [int]$choice - 1
         
         if ($categoryIndex -ge 0 -and $categoryIndex -lt $categories.Count) {
-            $selectedCategory = $categories[$categoryIndex]
+            $selectedCategory = $categories[$categoryIndex + 1]
             Show-SubMenu -Category $selectedCategory
         } else {
             Write-Host "Scelta non valida. Premi un tasto per continuare..." -ForegroundColor Red
@@ -671,58 +688,6 @@ function Show-SubMenu {
         }
         
     } while ($true)
-}
-
-# ============================================================================
-# MENU MICROSOFT OFFICE
-# ============================================================================
-function Show-OfficeMenu {
-    $action = "Installazione di Microsoft Office"
-    $description = "Verrà installata la versione scelta di Microsoft Office"
-    $title = Show-CenteredBox -action $action
-    $message = "Vuoi procedere alla $action`?`r`n$description"
-    $choicesOffice = [System.Management.Automation.Host.ChoiceDescription[]]@(
-        New-Object System.Management.Automation.Host.ChoiceDescription "Sì, Office &365", "Office 365."
-        New-Object System.Management.Automation.Host.ChoiceDescription "Sì, Office &2016", "Office Professional Plus 2016 64bit."
-        New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Salta questa operazione."
-        New-Object System.Management.Automation.Host.ChoiceDescription "&Esci", "Interrompe l'intero script."
-    )
-    
-    $decision = $host.UI.PromptForChoice($title, $message, $choicesOffice, 2)
-    
-    switch ($decision) {
-        0 {
-            Write-Host "Procedo con la $action..." -ForegroundColor Cyan
-            Write-Host "Installazione interattiva di Office 365, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
-            winget install -e --id Microsoft.Office --source winget --accept-package-agreements
-            Write-Host "$action completata." -ForegroundColor Green
-        }
-        1 {
-            Write-Host "Procedo con la $action..." -ForegroundColor Cyan
-            # Controllo se Office 2016 è già installato
-            $OfficeInstalled = Test-ProgramPath "C:\Program Files\Microsoft Office\Office16\WINWORD.EXE" -or Test-ProgramPath "C:\Program Files (x86)\Microsoft Office\Office16\WINWORD.EXE"
-            if ($OfficeInstalled) {
-                Write-Host "Office 2016 sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
-            } else {
-                $OfficePath = "$Global:LocalScriptRoot\Office Professional Plus 2016 64bit Ita\setup.exe"
-                if (Test-ProgramPath $OfficePath) {
-                    Write-Host "Installazione interattiva di Office 2016, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
-                    Start-Process $OfficePath -Wait
-                    Write-Host "Installazione di Office 2016 completata. Ricordati di inserire la chiave di licenza." -ForegroundColor Green
-                } else {
-                    Write-Warning "File di installazione di Office 2016 non trovato al percorso $OfficePath. Salto l'installazione."
-                }
-            }
-            Write-Host "$action completata." -ForegroundColor Green
-        }
-        2 {
-            Write-Host "$action saltata." -ForegroundColor Yellow
-        }
-        3 {
-            Write-Host "Uscita in corso..." -ForegroundColor Red
-            exit 
-        }
-    }
 }
 
 # ============================================================================
