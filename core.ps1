@@ -373,16 +373,6 @@ $MenuItems = @{
     
     "SOFTWARE OFFICE & COMUNICAZIONE" = @(
 		@{ Name = "Microsoft 365 Copilot"; ScriptBlock = { Install-Sw "Microsoft 365 Copilot" "9WZDNCRD29V9" } }
-        @{ Name = "Microsoft Teams"; ScriptBlock = { Install-Sw "Microsoft Teams" "XP8BT8DW290MPQ" } }
-        @{ Name = "Adobe Acrobat Reader"; ScriptBlock = { Install-Sw "Adobe Acrobat Reader" "Adobe.Acrobat.Reader.64-bit" } }
-        @{ Name = "LibreOffice"; ScriptBlock = { Install-Sw "LibreOffice" "TheDocumentFoundation.LibreOffice" } }
-        @{ Name = "WhatsApp"; ScriptBlock = { Install-Sw "WhatsApp" "9NKSQGP7F2NH" } }
-		@{ Name = "PDFsam Basic"; ScriptBlock = { Install-Sw "PDFsam Basic" "PDFsam.PDFsam" } }
-		@{ Name = "Firma Digitale InfoCamiere"; ScriptBlock = { Install-Sw "Firma Digitale InfoCamiere" "Bit4id.Firma4ng.InfoCamiere" } }
-		@{ Name = "Eset Security (Antivirus)"; ScriptBlock = { Install-Sw "Eset Security (Antivirus)" "ESET.Nod32" } }
-    )
-
-    "MICROSOFT OFFICE" = @(
         @{ Name = "Microsoft 365"; ScriptBlock = {
             Write-Host "Installazione interattiva di Office 365, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
             winget install -e --id Microsoft.Office --source winget --accept-package-agreements
@@ -403,8 +393,15 @@ $MenuItems = @{
                 }
             }
         }}
+        @{ Name = "Microsoft Teams"; ScriptBlock = { Install-Sw "Microsoft Teams" "XP8BT8DW290MPQ" } }
+        @{ Name = "Adobe Acrobat Reader"; ScriptBlock = { Install-Sw "Adobe Acrobat Reader" "Adobe.Acrobat.Reader.64-bit" } }
+        @{ Name = "LibreOffice"; ScriptBlock = { Install-Sw "LibreOffice" "TheDocumentFoundation.LibreOffice" } }
+        @{ Name = "WhatsApp"; ScriptBlock = { Install-Sw "WhatsApp" "9NKSQGP7F2NH" } }
+		@{ Name = "PDFsam Basic"; ScriptBlock = { Install-Sw "PDFsam Basic" "PDFsam.PDFsam" } }
+		@{ Name = "Firma Digitale InfoCamiere"; ScriptBlock = { Install-Sw "Firma Digitale InfoCamiere" "Bit4id.Firma4ng.InfoCamiere" } }
+		@{ Name = "Eset Security (Antivirus)"; ScriptBlock = { Install-Sw "Eset Security (Antivirus)" "ESET.Nod32" } }
     )
-        
+
     "SOFTWARE UTILITÀ" = @(
         @{ Name = "ShareX"; ScriptBlock = { Install-Sw "ShareX" "ShareX.ShareX" } }
         @{ Name = "Everything"; ScriptBlock = { Install-Sw "Everything" "voidtools.Everything" } }
