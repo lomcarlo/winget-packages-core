@@ -639,16 +639,23 @@ function Show-SubMenu {
             Write-Host "`nInstallazione di tutti i software completata. Premi un tasto per continuare..." -ForegroundColor Green
             Read-Host
         }
-        else {
-            # Gestione selezione multipla (es. "1,3,5") o singola
-            $selectedIndices = $choice -split ',' | ForEach-Object {
+        else { # Gestione selezione singola o multipla (es. "1,3,5")
+            $selectedIndices = $choice.Split(',').Trim() | ForEach-Object {
                 $num = 0
-                if ([int]::TryParse($_.Trim(), [ref]$num)) { $num - 1 }
+                if ([int]::TryParse($_, [ref]$num)) { $num - 1 }
             }
+
+            # Se c'è più di una selezione, attiva la modalità "non chiedere conferma"
+            $askConfirm = $selectedIndices.Count -le 1
 
             $validSelections = $false
             foreach ($index in $selectedIndices) {
                 if ($index -ge 0 -and $index -lt $items.Count) {
+                    if ($askConfirm -eq $false) {
+                        Write-Host "`nEsecuzione (senza conferma): $($items[$index].Name)..." -ForegroundColor Cyan
+                        Invoke-Command -ScriptBlock ([scriptblock]::Create($items[$index].ScriptBlock.ToString().Replace("{", "").Replace("}", "").Trim() + " -Ask `$false"))
+                        continue # Passa al prossimo ciclo
+                    }
                     $validSelections = $true
                     $selectedItem = $items[$index]
                     Write-Host "`nEsecuzione: $($selectedItem.Name)..." -ForegroundColor Cyan
