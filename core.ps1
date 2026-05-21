@@ -562,12 +562,13 @@ function Show-MainMenu {
         Write-Host "`n"
         
         $categoryIndex = 1
-        $categories = @()
+        $displayedCategories = @()
         
-        foreach ($category in $MenuItems.Keys) {
-            if ($category -ne "MICROSOFT OFFICE") { Write-Host "  [$categoryIndex] $category" -ForegroundColor Yellow }
-            $categories += $category
-            $categoryIndex++
+        # Filtra e ordina le categorie da mostrare
+        $categoriesToShow = $MenuItems.Keys | Where-Object { $_ -ne "MICROSOFT OFFICE" } | Sort-Object
+        foreach ($category in $categoriesToShow) {
+            Write-Host "  [$($displayedCategories.Count + 1)] $category" -ForegroundColor Yellow
+            $displayedCategories += $category
         }
         
         Write-Host "  [0] Esci" -ForegroundColor Red
@@ -582,8 +583,8 @@ function Show-MainMenu {
         
         $categoryIndex = [int]$choice - 1
         
-        if ($categoryIndex -ge 0 -and $categoryIndex -lt $categories.Count) {
-            $selectedCategory = $categories[$categoryIndex + 1]
+        if ($categoryIndex -ge 0 -and $categoryIndex -lt $displayedCategories.Count) {
+            $selectedCategory = $displayedCategories[$categoryIndex]
             Show-SubMenu -Category $selectedCategory
         } else {
             Write-Host "Scelta non valida. Premi un tasto per continuare..." -ForegroundColor Red
