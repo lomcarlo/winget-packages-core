@@ -599,7 +599,7 @@ function Show-SubMenu {
     
     do {
         Clear-Host
-        Write-Host (Show-CenteredBox -action $Category -rows 2) -ForegroundColor Cyan
+        Write-Host (Show-CenteredBox -action $Category -rows 3) -ForegroundColor Cyan
         Write-Host "`n"
         
         $items = $MenuItems[$Category]
