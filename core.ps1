@@ -434,7 +434,7 @@ $MenuItems = @{
         @{ Name = "K-Lite Codec Pack Standard"; ScriptBlock = { Install-Sw "K-Lite Codec Pack Standard" "CodecGuide.K-LiteCodecPack.Standard" } }
         @{ Name = "OBS Studio"; ScriptBlock = { Install-Sw "OBS Studio (Registrazione dello schermo)" "OBSProject.OBSStudio" } }
         @{ Name = "VLC Player"; ScriptBlock = { Install-Sw "VLC Video Player" "VLC.VLC" } }
-        @{ Name = "Shutter Encoder"; ScriptBlock = { Install-Sw "Shutter Encoder" "ShutterEncoder.ShutterEncoder" } }
+        @{ Name = "Shutter Encoder"; ScriptBlock = { Install-Sw "Shutter Encoder" "PaulPacifico.ShutterEncoder" } }
     )
     
     "SOFTWARE 3D" = @(
@@ -543,7 +543,7 @@ $MenuItems = @{
         @{ Name = "K-Lite Codec Pack Standard"; ScriptBlock = { Uninstall-Sw "K-Lite Codec Pack Standard" "CodecGuide.K-LiteCodecPack.Standard" } }
         @{ Name = "OBS Studio"; ScriptBlock = { Uninstall-Sw "OBS Studio (Registrazione dello schermo)" "OBSProject.OBSStudio" } }
         @{ Name = "VLC Player"; ScriptBlock = { Uninstall-Sw "VLC Video Player" "VLC.VLC" } }
-        @{ Name = "Shutter Encoder"; ScriptBlock = { Uninstall-Sw "Shutter Encoder" "ShutterEncoder.ShutterEncoder" } }
+        @{ Name = "Shutter Encoder"; ScriptBlock = { Uninstall-Sw "Shutter Encoder" "PaulPacifico.ShutterEncoder" } }
         @{ Name = "Visual Studio Code"; ScriptBlock = { Uninstall-Sw "Microsoft Visual Studio Code" "Microsoft.VisualStudioCode" } }
         @{ Name = "FileZilla"; ScriptBlock = { Uninstall-Sw "FileZilla" "FileZilla.FileZilla.Client" } }
         @{ Name = "PrusaSlicer"; ScriptBlock = { Uninstall-Sw "PrusaSlicer" "Prusa3D.PrusaSlicer" } }
