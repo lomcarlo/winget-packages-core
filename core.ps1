@@ -434,6 +434,7 @@ $MenuItems = @{
         @{ Name = "K-Lite Codec Pack Standard"; ScriptBlock = { Install-Sw "K-Lite Codec Pack Standard" "CodecGuide.K-LiteCodecPack.Standard" } }
         @{ Name = "OBS Studio"; ScriptBlock = { Install-Sw "OBS Studio (Registrazione dello schermo)" "OBSProject.OBSStudio" } }
         @{ Name = "VLC Player"; ScriptBlock = { Install-Sw "VLC Video Player" "VLC.VLC" } }
+        @{ Name = "Shutter Encoder"; ScriptBlock = { Install-Sw "Shutter Encoder" "ShutterEncoder.ShutterEncoder" } }
     )
     
     "SOFTWARE 3D" = @(
@@ -654,35 +655,38 @@ function Show-SubMenu {
             Write-Host "`nInstallazione di tutti i software completata. Premi un tasto per continuare..." -ForegroundColor Green
             Read-Host
         }
-        else { # Gestione selezione singola o multipla (es. "1,3,5")
-            $selectedIndices = $choice.Split(',').Trim() | ForEach-Object {
-                $num = 0
-                if ([int]::TryParse($_, [ref]$num)) { $num - 1 }
-            }
-
-            # Se c'è più di una selezione, attiva la modalità "non chiedere conferma"
-            $askConfirm = $selectedIndices.Count -le 1
-
-            $validSelections = $false
-            foreach ($index in $selectedIndices) {
-                if ($index -ge 0 -and $index -lt $items.Count) {
-                    if ($askConfirm -eq $false) {
-                        Write-Host "`nEsecuzione (senza conferma): $($items[$index].Name)..." -ForegroundColor Cyan
-                        Invoke-Command -ScriptBlock ([scriptblock]::Create($items[$index].ScriptBlock.ToString().Replace("{", "").Replace("}", "").Trim() + " -Ask `$false"))
-                        continue # Passa al prossimo ciclo
+        else {
+            # Gestione selezione multipla (es. "1,3,5")
+            if ($choice -like "*,*") {
+                $selectedIndices = $choice.Split(',').Trim() | ForEach-Object {
+                    $num = 0
+                    if ([int]::TryParse($_, [ref]$num)) { $num - 1 }
+                }
+                
+                foreach ($index in $selectedIndices) {
+                    if ($index -ge 0 -and $index -lt $items.Count) {
+                        $item = $items[$index]
+                        Write-Host "`nEsecuzione (senza conferma): $($item.Name)..." -ForegroundColor Cyan
+                        $itemScriptString = $item.ScriptBlock.ToString()
+                        Invoke-Command -ScriptBlock ([scriptblock]::Create($itemScriptString.Replace("{", "").Replace("}", "").Trim() + " -Ask `$false"))
                     }
-                    $validSelections = $true
-                    $selectedItem = $items[$index]
+                }
+                Write-Host "`nOperazioni completate. Premi un tasto per continuare..." -ForegroundColor Green
+                Read-Host
+            # Gestione selezione singola
+            } else {
+                $itemIndex = [int]$choice - 1
+                if ($itemIndex -ge 0 -and $itemIndex -lt $items.Count) {
+                    $selectedItem = $items[$itemIndex]
                     Write-Host "`nEsecuzione: $($selectedItem.Name)..." -ForegroundColor Cyan
                     & $selectedItem.ScriptBlock
+                    Write-Host "`nOperazione completata. Premi un tasto per continuare..." -ForegroundColor Green
+                    Read-Host
+                } else {
+                    Write-Host "Scelta non valida. Premi un tasto per continuare..." -ForegroundColor Red
+                    Read-Host
                 }
             }
-
-            if (-not $validSelections) {
-                Write-Host "Scelta non valida. Premi un tasto per continuare..." -ForegroundColor Red
-            }
-            Write-Host "`nOperazioni completate. Premi un tasto per continuare..." -ForegroundColor Green
-            Read-Host
         }
         
     } while ($true)
