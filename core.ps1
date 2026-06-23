@@ -455,6 +455,7 @@ $MenuItems = @{
         @{ Name = "Node.js"; ScriptBlock = { Install-Sw "Node.js LTS" "OpenJSFoundation.NodeJS.LTS" } }
         @{ Name = "FileZilla"; ScriptBlock = { Install-Sw "FileZilla" "FileZilla.FileZilla.Client" } }
         @{ Name = "Postman"; ScriptBlock = { Install-Sw "Postman" "Postman.Postman" } }
+		@{ Name = "OpenAI Codex"; ScriptBlock = { Install-Sw "Codex" "OpenAI.Codex" } }
         @{ Name = "XAMPP"; ScriptBlock = { Download-Install-Sw "XAMPP", "https://www.apachefriends.org/xampp-files/8.2.4/xampp-windows-x64-8.2.4-0-VS16-installer.exe", "C:\xampp\xampp-control.exe" } }
     )
     
