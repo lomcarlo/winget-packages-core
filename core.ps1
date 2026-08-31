@@ -1,69 +1,16 @@
-# 1. Gestione finestra precedente
+# ============================================================================
+# 1. GESTIONE FINESTRA E PRIVILEGI ADMINISTRATOR
+# ============================================================================
 $WindowTitle = "*powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Maximized -File*"
 $ParentProcess = Get-Process | Where-Object { $_.MainWindowTitle -like $WindowTitle }
 if ($ParentProcess) { $ParentProcess | Stop-Process -Force }
 
-# 2. Forza Massimizzazione
+# Forza Massimizzazione
 $cmd = '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);'
 $type = Add-Type -MemberDefinition $cmd -Name "Win32ShowWindow" -Namespace "Win32" -PassThru
 $handle = (Get-Process -Id $PID).MainWindowHandle
 $type::ShowWindow($handle, 3)
 Clear-Host 
-
-function Show-CenteredBox {
-    param(
-        [string]$action, 
-        [int]$rows = 1
-    )
-
-    $width = 78  # Larghezza interna della cornice
-    $lines = $action -split "`r`n"
-
-    # 1. Costruzione del bordo superiore
-    $result = "╔$($('═' * $width))╗`r`n"
-
-    # 2. Aggiunta di eventuali righe vuote sopra (se $rows > 1)
-    # Ne aggiungiamo (rows - 1) divise tra sopra e sotto per centrare verticalmente
-    $emptyRowsTop = [math]::Floor(($rows - 1) / 2)
-    for ($i = 0; $i -lt $emptyRowsTop; $i++) {
-        $result += "║$(' ' * $width)║`r`n"
-    }
-
-    # 3. Elaborazione di ogni riga di testo (gestisce lo split \r\n)
-    foreach ($line in $lines) {
-        $currentLine = $line
-        
-        # Tronca se troppo lunga
-        if ($currentLine.Length -gt $width) {
-            $currentLine = $currentLine.Substring(0, $width - 3) + "..."
-        }
-
-        $paddingTotal = $width - $currentLine.Length
-        $padLeft = [math]::Floor($paddingTotal / 2)
-        $padRight = $paddingTotal - $padLeft
-
-        $spacesLeft = " " * $padLeft
-        $spacesRight = " " * $padRight
-        
-        $result += "║$spacesLeft$currentLine$spacesRight║`r`n"
-    }
-
-    # 4. Aggiunta di eventuali righe vuote sotto
-    $emptyRowsBottom = ($rows - 1) - $emptyRowsTop
-    for ($i = 0; $i -lt $emptyRowsBottom; $i++) {
-        $result += "║$(' ' * $width)║`r`n"
-    }
-
-    # 5. Bordo inferiore
-    $result += "╚$($('═' * $width))╝"
-
-    return $result
-}
-
-# -----------------------------
-
-$testo = "PROGRAMMA DI INSTALLAZIONE PACCHETTI SOFTWARE WINDOWS 10+`r`nBy Carlo Lombardo"
-Write-Host (Show-CenteredBox -action $testo -rows 3) -ForegroundColor White
 
 # Controllo privilegi Administrator
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
@@ -71,714 +18,703 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-function Get-ScriptPath {
-    <#
-    .SYNOPSIS
-        Restituisce la cartella contenente lo script corrente.
-    #>
-    if ($PSVersionTable.PSVersion.Major -ge 3) {
-        # Metodo consigliato per PowerShell 3.0 e versioni successive
-        return $PSScriptRoot
+# ============================================================================
+# 2. FUNZIONI UTILITY E INTERFACCIA
+# ============================================================================
+function Show-CenteredBox {
+    param(
+        [string]$action, 
+        [int]$rows = 1
+    )
+    $width = 78
+    $lines = $action -split "`r`n"
+    $result = "╔$($('═' * $width))╗`r`n"
+
+    $emptyRowsTop = [math]::Floor(($rows - 1) / 2)
+    for ($i = 0; $i -lt $emptyRowsTop; $i++) {
+        $result += "║$(' ' * $width)║`r`n"
     }
-    else {
-        # Metodo compatibile con PowerShell 2.0
+
+    foreach ($line in $lines) {
+        $currentLine = $line
+        if ($currentLine.Length -gt $width) {
+            $currentLine = $currentLine.Substring(0, $width - 3) + "..."
+        }
+        $paddingTotal = $width - $currentLine.Length
+        $padLeft = [math]::Floor($paddingTotal / 2)
+        $padRight = $paddingTotal - $padLeft
+        $spacesLeft = " " * $padLeft
+        $spacesRight = " " * $padRight
+        $result += "║$spacesLeft$currentLine$spacesRight║`r`n"
+    }
+
+    $emptyRowsBottom = ($rows - 1) - $emptyRowsTop
+    for ($i = 0; $i -lt $emptyRowsBottom; $i++) {
+        $result += "║$(' ' * $width)║`r`n"
+    }
+
+    $result += "╚$($('═' * $width))╝"
+    return $result
+}
+
+function Get-ScriptPath {
+    if ($PSVersionTable.PSVersion.Major -ge 3) {
+        return $PSScriptRoot
+    } else {
         return Split-Path -Parent $MyInvocation.MyCommand.Definition
     }
 }
 
-# 1. Se la variabile globale non esiste o è vuota, prova il fallback
 if ([string]::IsNullOrEmpty($Global:LocalScriptRoot)) {
-    
-    # Visualizza il box di avviso 
-    Write-Host (Show-CenteredBox -action "`$Global:LocalScriptRoot non presente. Provo con Get-ScriptPath" -rows 1) -ForegroundColor Red
-    
-    # Assegnazione corretta con un solo uguale '='
     $Global:LocalScriptRoot = Get-ScriptPath
 }
 
-# 2. Se è ancora vuota dopo il primo tentativo, manda il secondo avviso
-if ([string]::IsNullOrEmpty($Global:LocalScriptRoot)) {
-    Write-Host (Show-CenteredBox -action "Non funziona nemmeno Get-ScriptPath" -rows 1) -ForegroundColor Red
-}
-
-# Funzione per verificare l'esistenza di un programma nel percorso di installazione standard
 function Test-ProgramPath {
-    param(
-        [string]$Path
-    )
-	if([string]::IsNullOrEmpty($Path)) {
-		return false
-	}else{
-		return Test-Path $Path
-	}
+    param([string]$Path)
+    if ([string]::IsNullOrEmpty($Path)) { return $false }
+    return Test-Path $Path
 }
 
-$choices = [System.Management.Automation.Host.ChoiceDescription[]]@(
-    New-Object System.Management.Automation.Host.ChoiceDescription "&Sì", "Esegue l'operazione descritta."
+# Opzioni di scelta standard
+$Global:Choices = [System.Management.Automation.Host.ChoiceDescription[]]@(
+    New-Object System.Management.Automation.Host.ChoiceDescription "&Sì", "Esegue l'operazione."
     New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Salta questa operazione."
-    New-Object System.Management.Automation.Host.ChoiceDescription "&Esci", "Interrompe l'intero script."
+    New-Object System.Management.Automation.Host.ChoiceDescription "&Esci", "Interrompe lo script."
 )
 
-function Invoke-Action {
+# ============================================================================
+# 3. STRUTTURA OGGETTO UNICO PER SOFTWARE/CONFIGURAZIONI
+# ============================================================================
+function New-AppDefinition {
     param(
         [string]$Name,
-        [string]$Description,
-        [scriptblock]$ScriptBlock,
-		[int]$Rows = 1
+        [string]$Category,
+        [string]$Type = "Winget",             # Winget, Download, Script
+        [string]$Id = "",                     # ID Winget
+        [string]$Source = "winget",
+        [string]$Url = "",                    # URL per Download
+        [string]$InstallPath = "",            # Percorso di verifica
+        [scriptblock]$InstallScript = $null,  # Script per installazioni custom
+        [string]$UninstallType = "Winget",   # Winget, Script, None
+        [string]$UninstallId = "",            # ID Winget per disinstallazione (se diverso)
+        [scriptblock]$UninstallScript = $null # Script per disinstallazioni custom
     )
 
-    $title = Show-CenteredBox -action "$Name`r`n$Description" -rows $Rows
-    $message = "Vuoi procedere?"
-    
-    # Usa la variabile globale $choices definita all'inizio dello script
-    $decision = $host.UI.PromptForChoice($title, $message, $choices, 1)
-
-    switch ($decision) {
-        0 {
-            Write-Host "Procedo con: $Name..." -ForegroundColor Cyan
-            & $ScriptBlock
-            Write-Host "Operazione '$Name' completata." -ForegroundColor Green
-        }
-        1 {
-            Write-Host "Operazione '$Name' saltata." -ForegroundColor Yellow
-        }
-        2 {
-            Write-Host "Uscita in corso..." -ForegroundColor Red
-            exit
-        }
+    return [PSCustomObject]@{
+        Name            = $Name
+        Category        = $Category
+        Type            = $Type
+        Id              = $Id
+        Source          = $Source
+        Url             = $Url
+        InstallPath     = $InstallPath
+        InstallScript   = $InstallScript
+        UninstallType   = $UninstallType
+        UninstallId     = if ($UninstallId) { $UninstallId } else { $Id }
+        UninstallScript = $UninstallScript
     }
 }
 
+# List per la coda di installazione
+$Global:InstallQueue = [System.Collections.Generic.List[PSCustomObject]]::new()
+
+# ============================================================================
+# 4. FUNZIONI DI ESECUZIONE (INSTALLAZIONE E DISINSTALLAZIONE)
+# ============================================================================
 function Download-Install-Sw {
     param(
         [string]$Name,
         [string]$Url,
         [string]$InstallPath
     )
-    $installed = Test-ProgramPath $InstallPath
-    if ($installed) {
-        Write-Host "$Name sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
+    if (Test-ProgramPath $InstallPath) {
+        Write-Host "$Name sembra essere già installato. Salto." -ForegroundColor Yellow
+        return
+    }
+    $cleanPath = ([System.Uri]$Url).AbsolutePath
+    $filename = Split-Path $cleanPath -Leaf
+    $destination = Join-Path $env:TEMP $filename
+    $dir = Split-Path $destination
+    if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    
+    Invoke-WebRequest -Uri $Url -OutFile $destination
+    if (Test-ProgramPath $destination) {
+        Write-Host "Procedo con l'installazione di $Name..." -ForegroundColor Cyan
+        Start-Process $destination -Wait
+        Write-Host "Installazione di $Name completata." -ForegroundColor Green
     } else {
-        # Trasforma la stringa in un oggetto URI e prende solo il "AbsolutePath"
-        $cleanPath = ([System.Uri]$Url).AbsolutePath
-
-        # Estrae il nome del file (es: DaVinci_Resolve_Studio_20.3.2_Windows.zip)
-        $filename = Split-Path $cleanPath -Leaf
-
-        # Crea il percorso finale nella cartella Temp
-        $destination = Join-Path $env:TEMP $filename
-        $dir = Split-Path $destination
-        if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
-        Invoke-WebRequest -Uri $Url -OutFile $destination
-        if (Test-ProgramPath $destination) {
-            Write-Host "Procedo con l'installazione di $Name. Ricordati di chiuderlo per continuare lo script..." -ForegroundColor Cyan
-            Start-Process $destination -Wait
-            Write-Host "Installazione di $Name completata." -ForegroundColor Green
-        } else {
-            Write-Warning "File di installazione non trovato al percorso $destination Salto l'installazione."
-        }
+        Write-Warning "File non trovato a $destination. Salto."
     }
 }
 
-function Install-Sw {
+function Invoke-AppInstall {
     param(
-        [string]$Name,
-        [string]$Id,
-        [bool]$Ask = $true,
-        [string]$Source = "winget"
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$App,
+        [bool]$Ask = $true
     )
 
-	$title = Show-CenteredBox -action $Name
-	$message = "Vuoi procedere con l'installazione?"
+    $title = Show-CenteredBox -action "INSTALLAZIONE: $($App.Name)"
+    $message = "Vuoi procedere con l'installazione di '$($App.Name)'?"
+    
+    $proceed = $false
 
     if ($Ask) {
-        $decision = $host.UI.PromptForChoice($title, $message, $choices, 1)
+        $decision = $host.UI.PromptForChoice($title, $message, $Global:Choices, 1)
+        switch ($decision) {
+            0 { $proceed = $true }
+            1 { Write-Host "Installazione di '$($App.Name)' saltata." -ForegroundColor Yellow; return }
+            2 { Write-Host "Uscita in corso..." -ForegroundColor Red; exit }
+        }
     } else {
-        # Se $Ask è false, forziamo la decisione a 0 (Installa senza chiedere)
-		Write-Host $title
-        $decision = 0
+        Write-Host $title
+        Write-Host "Esecuzione automatica (senza conferma)..." -ForegroundColor Cyan
+        $proceed = $true
     }
 
-    switch ($decision) {
-        0 {
-            Write-Host "Procedo con l'installazione di $Name..." -ForegroundColor Cyan
-            winget install -e --id $Id --source $Source --accept-package-agreements --silent
-            Write-Host "Installazione di $Name completata." -ForegroundColor Green
+    if ($proceed) {
+        Write-Host "Procedo con l'installazione di '$($App.Name)'..." -ForegroundColor Cyan
+        switch ($App.Type) {
+            "Winget" {
+                winget install -e --id $App.Id --source $App.Source --accept-package-agreements --accept-source-agreements --silent
+            }
+            "Download" {
+                Download-Install-Sw -Name $App.Name -Url $App.Url -InstallPath $App.InstallPath
+            }
+            "Script" {
+                if ($App.InstallScript) {
+                    & $App.InstallScript
+                } else {
+                    Write-Warning "Nessuno script di installazione definito per $($App.Name)."
+                }
+            }
         }
-        1 {
-            Write-Host "Installazione di $Name saltata." -ForegroundColor Yellow
-        }
-        2 {
-            Write-Host "Uscita in corso..." -ForegroundColor Red
-            exit 
-        }
+        Write-Host "Operazione su '$($App.Name)' completata." -ForegroundColor Green
     }
 }
 
-function Uninstall-Sw {
+function Invoke-AppUninstall {
     param(
-        [string]$Name,
-        [string]$Id,
-        [string]$Source = "winget"
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$App,
+        [bool]$Ask = $true
     )
 
-    $title = Show-CenteredBox -action "Disinstallazione di $Name"
-    $message = "Vuoi procedere con la disinstallazione?"
-    
-    # Usiamo le scelte standard Sì/No/Esci
-    $decision = $host.UI.PromptForChoice($title, $message, $choices, 1)
+    if ($App.UninstallType -eq "None") {
+        Write-Host "L'elemento '$($App.Name)' non supporta la disinstallazione automatica." -ForegroundColor Yellow
+        return
+    }
 
-    switch ($decision) {
-        0 {
-            Write-Host "Procedo con la disinstallazione di $Name..." -ForegroundColor Cyan
-            # Verifica se il pacchetto è installato prima di tentare la rimozione
-            $installedPackage = winget list --id $Id --source $Source
-            if ($installedPackage) {
-                winget uninstall --id $Id --source $Source --accept-source-agreements --silent
-                Write-Host "Disinstallazione di $Name completata." -ForegroundColor Green
-            } else {
-                Write-Host "$Name non risulta installato. Operazione saltata." -ForegroundColor Yellow
+    $title = Show-CenteredBox -action "DISINSTALLAZIONE: $($App.Name)"
+    $message = "Vuoi procedere con la disinstallazione di '$($App.Name)'?"
+    
+    $proceed = $false
+
+    if ($Ask) {
+        $decision = $host.UI.PromptForChoice($title, $message, $Global:Choices, 1)
+        switch ($decision) {
+            0 { $proceed = $true }
+            1 { Write-Host "Disinstallazione di '$($App.Name)' saltata." -ForegroundColor Yellow; return }
+            2 { Write-Host "Uscita in corso..." -ForegroundColor Red; exit }
+        }
+    } else {
+        Write-Host $title
+        Write-Host "Disinstallazione automatica (senza conferma)..." -ForegroundColor Cyan
+        $proceed = $true
+    }
+
+    if ($proceed) {
+        Write-Host "Procedo con la disinstallazione di '$($App.Name)'..." -ForegroundColor Cyan
+        switch ($App.UninstallType) {
+            "Winget" {
+                $installedPackage = winget list --id $App.UninstallId --source $App.Source
+                if ($installedPackage) {
+                    winget uninstall --id $App.UninstallId --source $App.Source --accept-source-agreements --silent
+                    Write-Host "Disinstallazione di '$($App.Name)' completata." -ForegroundColor Green
+                } else {
+                    Write-Host "'$($App.Name)' non risulta installato. Salto." -ForegroundColor Yellow
+                }
             }
-        }
-        1 {
-            Write-Host "Disinstallazione di $Name saltata." -ForegroundColor Yellow
-        }
-        2 {
-            Write-Host "Uscita in corso..." -ForegroundColor Red
-            exit 
+            "Script" {
+                if ($App.UninstallScript) {
+                    & $App.UninstallScript
+                } else {
+                    Write-Warning "Nessuno script di disinstallazione definito per $($App.Name)."
+                }
+            }
         }
     }
 }
 
 # ============================================================================
-# MENU PRINCIPALE - SISTEMA INTERATTIVO
+# 5. CATALOGO GENERALE SOFTWARE E CONFIGURAZIONI (OGGETTI UNICI)
 # ============================================================================
-
-$MenuItems = @{
-    "CONFIGURAZIONE SISTEMA" = @(
-        @{ Name = "Disabilitazione OOBE"; ScriptBlock = {
-            $RegistryPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OOBE"
-            if (-not (Test-ProgramPath $RegistryPath)) { New-Item -Path $RegistryPath -Force | Out-Null }
-            Set-ItemProperty -Path $RegistryPath -Name "DisablePrivacyExperience" -Value 1 -Type DWORD -Force
-            Write-Host "OOBE disabilitato." -ForegroundColor Green
-        }}
-        @{ Name = "Eliminazione automatica vecchi account"; ScriptBlock = {
-            Set-Location $Global:LocalScriptRoot
-            $psPath = (Join-Path (Get-Location).Path "manutenzioneAccount.ps1")
-            $destinazione = "C:\Program Files\ManutenzioneAccount"
-            if (!(Test-ProgramPath $destinazione)) {
-                New-Item -Path $destinazione -ItemType Directory
+$Global:AppCatalog = @(
+    # CONFIGURAZIONE SISTEMA
+    (New-AppDefinition -Name "Disabilitazione OOBE" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+        $RegistryPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OOBE"
+        if (-not (Test-ProgramPath $RegistryPath)) { New-Item -Path $RegistryPath -Force | Out-Null }
+        Set-ItemProperty -Path $RegistryPath -Name "DisablePrivacyExperience" -Value 1 -Type DWORD -Force
+        Write-Host "OOBE disabilitato." -ForegroundColor Green
+    }),
+    (New-AppDefinition -Name "Eliminazione automatica vecchi account" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+        Set-Location $Global:LocalScriptRoot
+        $psPath = Join-Path (Get-Location).Path "manutenzioneAccount.ps1"
+        $destinazione = "C:\Program Files\ManutenzioneAccount"
+        if (!(Test-ProgramPath $destinazione)) { New-Item -Path $destinazione -ItemType Directory | Out-Null }
+        Copy-Item -Path $psPath -Destination $destinazione -Force
+        $ScriptPath = Join-Path $destinazione "manutenzioneAccount.ps1"
+        $Command = "PowerShell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
+        schtasks.exe /Create /TN "PuliziaAccountInattivi" /TR $Command /SC MONTHLY /D 1 /ST 03:00 /RU "SYSTEM" /RL HIGHEST /F
+        Write-Host "Task scheduler programmato." -ForegroundColor Green
+    }),
+    (New-AppDefinition -Name "Impostazione immagine UniPV" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+        Set-Location $Global:LocalScriptRoot
+        $bg_path = Join-Path (Get-Location).Path "grafica_unipv\unipv_bg.jpg"
+        $logo_bmp = Join-Path (Get-Location).Path "grafica_unipv\unipv_logo.bmp"
+        $logo_png = Join-Path (Get-Location).Path "grafica_unipv\unipv_logo.png"
+        $wallpaperPath = "C:\Windows\Web\Wallpaper\unipv_bg.jpg"
+        $lockScreenPath = "C:\Windows\Web\Screen\unipv_lock.jpg"
+        
+        Copy-Item $bg_path -Destination $wallpaperPath -Force
+        Copy-Item $bg_path -Destination $lockScreenPath -Force
+        $accountPath = "$env:PROGRAMDATA\Microsoft\User Account Pictures"
+        Copy-Item $logo_bmp -Destination "$accountPath\user.bmp" -Force
+        Copy-Item $logo_bmp -Destination "$accountPath\guest.bmp" -Force
+        Copy-Item $logo_png -Destination "$accountPath\user.png" -Force
+        Copy-Item $logo_png -Destination "$accountPath\guest.png" -Force
+        
+        New-Item -Path "HKLM:\Software\Policies\Microsoft\Windows\System" -Force | Out-Null
+        Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\System" -Name "Wallpaper" -Value $wallpaperPath
+        Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\System" -Name "WallpaperStyle" -Value "2"
+        New-Item -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Force | Out-Null
+        Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Name "LockScreenImage" -Value $lockScreenPath
+        Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Name "NoChangingLockScreen" -Value 1
+        Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Name "NoChangingDesktopBackground" -Value 1
+        Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Name "LockScreenOverlaysDisabled" -Value 1
+        New-Item -Path "HKLM:\Software\Policies\Microsoft\Windows\ActiveDesktop" -Force | Out-Null
+        Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\ActiveDesktop" -Name "NoChangingWallpaper" -Value 1
+        
+        RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
+        gpupdate /force
+        Write-Host "Tema UniPV applicato." -ForegroundColor Green
+    }),
+    (New-AppDefinition -Name "Aggiunta utente Ospite" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+        $username = "Ospite"
+        if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
+            Write-Host "L'utente '$username' esiste già." -ForegroundColor Yellow
+        } else {
+            $userCreated = $false
+            while (-not $userCreated) {
+                try {
+                    $Password = Read-Host -AsSecureString "Inserisci la password per il nuovo utente"
+                    New-LocalUser -Name $username -Password $Password -UserMayNotChangePassword -AccountNeverExpires -PasswordNeverExpires -Description "Account utente Ospite" -ErrorAction Stop
+                    Add-LocalGroupMember -Group "Guests" -Member $username
+                    Write-Host "Account '$username' creato con successo." -ForegroundColor Green
+                    $userCreated = $true
+                } catch {
+                    Write-Host "ERRORE: Password non valida." -ForegroundColor Red
+                }
             }
-            Copy-Item -Path $psPath -Destination $destinazione -Force
-            
-            # 1. Definisci il percorso completo dello script
-            $ScriptPath = Join-Path $destinazione "manutenzioneAccount.ps1"
-            
-            # Usiamo le virgolette interne per proteggere il percorso con spazi
-            $Command = "PowerShell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
-            
-            # Esecuzione del comando schtasks
-            schtasks.exe /Create /TN "PuliziaAccountInattivi" /TR $Command /SC MONTHLY /D 1 /ST 03:00 /RU "SYSTEM" /RL HIGHEST /F
-            Write-Host "Task scheduler programmato per pulizia account inattivi." -ForegroundColor Green
-        }}
-        @{ Name = "Impostazione immagine UniPV"; ScriptBlock = {
-            Set-Location $Global:LocalScriptRoot
-            $bg_path = Join-Path (Get-Location).Path "grafica_unipv\unipv_bg.jpg"
-            $logo_bmp = Join-Path (Get-Location).Path "grafica_unipv\unipv_logo.bmp"
-            $logo_png = Join-Path (Get-Location).Path "grafica_unipv\unipv_logo.png"
-            $wallpaperPath = "C:\Windows\Web\Wallpaper\unipv_bg.jpg"
-            $lockScreenPath = "C:\Windows\Web\Screen\unipv_lock.jpg"
-            
-            Copy-Item $bg_path -Destination $wallpaperPath -Force
-            Copy-Item $bg_path -Destination $lockScreenPath -Force
-            $accountPath = "$env:PROGRAMDATA\Microsoft\User Account Pictures"
-            Copy-Item $logo_bmp -Destination "$accountPath\user.bmp" -Force
-            Copy-Item $logo_bmp -Destination "$accountPath\guest.bmp" -Force
-            Copy-Item $logo_png -Destination "$accountPath\user.png" -Force
-            Copy-Item $logo_png -Destination "$accountPath\guest.png" -Force
-            
-            New-Item -Path "HKLM:\Software\Policies\Microsoft\Windows\System" -Force | Out-Null
-            Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\System" -Name "Wallpaper" -Value $wallpaperPath
-            Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\System" -Name "WallpaperStyle" -Value "2"
-            New-Item -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Force | Out-Null
-            Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Name "LockScreenImage" -Value $lockScreenPath
-            Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Name "NoChangingLockScreen" -Value 1
-            Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Name "NoChangingDesktopBackground" -Value 1
-            Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\Personalization" -Name "LockScreenOverlaysDisabled" -Value 1
-            New-Item -Path "HKLM:\Software\Policies\Microsoft\Windows\ActiveDesktop" -Force | Out-Null
-            Set-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\ActiveDesktop" -Name "NoChangingWallpaper" -Value 1
-            
-            RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters
-            gpupdate /force
-            Write-Host "Tema UniPV applicato." -ForegroundColor Green
-        }}
-        @{ Name = "Aggiunta utente Ospite"; ScriptBlock = {
-            $username = "Ospite"
-            if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
-                Write-Host "L'utente '$username' esiste già." -ForegroundColor Yellow
+        }
+    }),
+    (New-AppDefinition -Name "Abilitazione account Administrator" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+        $adminUser = "Administrator"
+        $adminAccount = Get-LocalUser -Name $adminUser -ErrorAction SilentlyContinue
+        if ($adminAccount) {
+            if ($adminAccount.Enabled) {
+                Write-Host "L'account '$adminUser' è già abilitato." -ForegroundColor Yellow
             } else {
-                $userCreated = $false
-                while (-not $userCreated) {
-                    try {
-                        $Password = Read-Host -AsSecureString "Inserisci la password per il nuovo utente"
-                        New-LocalUser -Name $username -Password $Password -UserMayNotChangePassword -AccountNeverExpires -PasswordNeverExpires -Description "Account utente Ospite" -ErrorAction Stop
-                        Add-LocalGroupMember -Group "Guests" -Member $username
-                        Write-Host "Account '$username' creato con successo." -ForegroundColor Green
-                        $userCreated = $true
-                    } catch {
-                        Write-Host "`nERRORE: La password non soddisfa i requisiti." -ForegroundColor Red
-                        Write-Host "Dettaglio: $($_.Exception.Message)" -ForegroundColor Red
-                    }
-                }
+                Enable-LocalUser -Name $adminUser
+                Write-Host "L'account '$adminUser' è stato abilitato." -ForegroundColor Green
             }
-        }}
-        @{ Name = "Abilitazione account Administrator"; ScriptBlock = {
-            $adminUser = "Administrator"
-            $adminAccount = Get-LocalUser -Name $adminUser -ErrorAction SilentlyContinue
-            if ($adminAccount) {
-                if ($adminAccount.Enabled) {
-                    Write-Host "L'account '$adminUser' è già abilitato." -ForegroundColor Yellow
-                } else {
-                    Enable-LocalUser -Name $adminUser
-                    Write-Host "L'account '$adminUser' è stato abilitato." -ForegroundColor Green
-                }
-            } else {
-                Write-Host "L'account '$adminUser' non esiste." -ForegroundColor Red
-            }
-        }}
-        @{ Name = "pGina (Login alternativo)"; ScriptBlock = { Show-PGinaMenu } }
-    )
-    
-    "SOFTWARE ESSENZIALI" = @(
-        @{ Name = "Winget AutoUpdate"; ScriptBlock = {
-            Install-Sw "Winget AutoUpdate" "Romanitho.Winget-AutoUpdate"
-            $wauPath = "$env:ProgramData\WAU"
-            $exclusionFileSource = Join-Path $Global:LocalScriptRoot "excluded_apps.txt"
-            $exclusionFileDest = Join-Path $wauPath "excluded_apps.txt"
-            if (Test-ProgramPath $exclusionFileSource) {
-                Write-Host "Configurazione file di esclusione per Winget-AutoUpdate..." -ForegroundColor Cyan
-                if (-not (Test-ProgramPath $wauPath)) {
-                    New-Item -Path $wauPath -ItemType Directory -Force | Out-Null
-                }
-                Copy-Item -Path $exclusionFileSource -Destination $exclusionFileDest -Force
-                Write-Host "File excluded_apps.txt configurato." -ForegroundColor Green
-            }
-        }}
-        @{ Name = "WAU Settings GUI"; ScriptBlock = { Install-Sw "WAU Settings GUI" "KnifMelti.WAU-Settings-GUI" } }
-        @{ Name = "Google Drive"; ScriptBlock = { Install-Sw "Google Drive" "Google.GoogleDrive" } }
-        @{ Name = "Google Chrome"; ScriptBlock = { Install-Sw "Google Chrome" "Google.Chrome" } }
-        @{ Name = "7zip"; ScriptBlock = { Install-Sw "7zip" "7zip.7zip" } }
-        @{ Name = "Zoom Workplace"; ScriptBlock = { Install-Sw "Zoom Workplace" "Zoom.Zoom" } }
-    )
-    
-    "SOFTWARE OFFICE & COMUNICAZIONE" = @(
-		@{ Name = "Microsoft 365 Copilot"; ScriptBlock = { Install-Sw "Microsoft 365 Copilot" "9WZDNCRD29V9" } }
-        @{ Name = "Microsoft 365"; ScriptBlock = {
-            Write-Host "Installazione interattiva di Office 365, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
-            winget install -e --id Microsoft.Office --source winget --accept-package-agreements
-            Write-Host "Installazione di Office 365 completata." -ForegroundColor Green
-        }}
-        @{ Name = "Microsoft Office 2016 Professional Plus"; ScriptBlock = {
-            $OfficeInstalled = Test-ProgramPath "C:\Program Files\Microsoft Office\Office16\WINWORD.EXE" -or Test-ProgramPath "C:\Program Files (x86)\Microsoft Office\Office16\WINWORD.EXE"
-            if ($OfficeInstalled) {
-                Write-Host "Office 2016 sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
-            } else {
-                $OfficePath = "$Global:LocalScriptRoot\Office Professional Plus 2016 64bit Ita\setup.exe"
-                if (Test-ProgramPath $OfficePath) {
-                    Write-Host "Installazione interattiva di Office 2016, seguire la procedura guidata che si aprirà..." -ForegroundColor Cyan
-                    Start-Process $OfficePath -Wait
-                    Write-Host "Installazione di Office 2016 completata. Ricordati di inserire la chiave di licenza." -ForegroundColor Green
-                } else {
-                    Write-Warning "File di installazione di Office 2016 non trovato al percorso $OfficePath. Salto l'installazione."
-                }
-            }
-        }}
-        @{ Name = "Microsoft Teams"; ScriptBlock = { Install-Sw "Microsoft Teams" "XP8BT8DW290MPQ" } }
-        @{ Name = "Adobe Acrobat Reader"; ScriptBlock = { Install-Sw "Adobe Acrobat Reader" "Adobe.Acrobat.Reader.64-bit" } }
-        @{ Name = "LibreOffice"; ScriptBlock = { Install-Sw "LibreOffice" "TheDocumentFoundation.LibreOffice" } }
-        @{ Name = "WhatsApp"; ScriptBlock = { Install-Sw "WhatsApp" "9NKSQGP7F2NH" } }
-		@{ Name = "PDFsam Basic"; ScriptBlock = { Install-Sw "PDFsam Basic" "PDFsam.PDFsam" } }
-		@{ Name = "Firma Digitale InfoCamiere"; ScriptBlock = { Install-Sw "Firma Digitale InfoCamiere" "Bit4id.Firma4ng.InfoCamiere" } }
-		@{ Name = "Eset Security (Antivirus)"; ScriptBlock = { Install-Sw "Eset Security (Antivirus)" "ESET.Nod32" } }
-    )
+        }
+    }),
+    (New-AppDefinition -Name "pGina (Login alternativo)" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "Script" -UninstallScript { Show-PGinaMenu } -InstallScript { Show-PGinaMenu }),
 
-    "SOFTWARE UTILITÀ" = @(
-        @{ Name = "ShareX"; ScriptBlock = { Install-Sw "ShareX" "ShareX.ShareX" } }
-        @{ Name = "Everything"; ScriptBlock = { Install-Sw "Everything" "voidtools.Everything" } }
-        @{ Name = "KeePassXC"; ScriptBlock = { Install-Sw "KeePassXC" "KeePassXCTeam.KeePassXC" } }
-        @{ Name = "Notepad++"; ScriptBlock = { Install-Sw "Notepad++" "Notepad++.Notepad++" } }
-        @{ Name = "Mendeley Reference Manager"; ScriptBlock = { Install-Sw "Mendeley Reference Manager" "Elsevier.MendeleyReferenceManager" } }
-        @{ Name = "Advanced Renamer"; ScriptBlock = { Install-Sw "Advanced Renamer" "HulubuluSoftware.AdvancedRenamer" } }
-		@{ Name = "AutoHotkey"; ScriptBlock = { Download-Install-Sw "AutoHotkey", "https://www.autohotkey.com/download/ahk-v2.exe", "C:\Program Files\AutoHotkey\UX\AutoHotkeyUX.exe" } }
-        @{ Name = "VirtualBox"; ScriptBlock = { Install-Sw "VirtualBox" "Oracle.VirtualBox" }}
-        @{ Name = "WinSCP"; ScriptBlock = { Install-Sw "WinSCP" "WinSCP.WinSCP" } }
-		@{ Name = "Putty"; ScriptBlock = { Install-Sw "Putty" "PuTTY.PuTTY" } }
-        @{ Name = "pGina (Login alternativo)"; ScriptBlock = { Show-PGinaMenu } }
-        @{ Name = "Supremo Control"; ScriptBlock = { Download-Install-Sw "Supremo Control" "https://www.nanosystems.it/public/download/Supremo.exe" "C:\Program Files (x86)\Supremo\Supremo.exe" } }
-    )
-    
-    "SOFTWARE STATISTICI" = @(
-        @{ Name = "JASP"; ScriptBlock = { Install-Sw "JASP" "UniversityOfAmsterdam.JASP" } }
-        @{ Name = "R Project"; ScriptBlock = { Install-Sw "R Project" "RProject.R" } }
-        @{ Name = "GPower"; ScriptBlock = { Install-Sw "GPower" "GPower.GPower" } }
-        @{ Name = "RStudio"; ScriptBlock = { Install-Sw "RStudio" "Posit.RStudio" } }
-        @{ Name = "Orange"; ScriptBlock = { Install-Sw "Orange" "UniversityOfLjubljana.Orange" } }
-        @{ Name = "Python"; ScriptBlock = { Install-Sw "Python" "Python.Launcher" } }
-        @{ Name = "Jupyter Notebook"; ScriptBlock = { Install-Sw "Jupyter Notebook" "ProjectJupyter.JupyterLab" } }
-    )
-    
-    "MULTIMEDIA" = @(
-        @{ Name = "Audacity"; ScriptBlock = { Install-Sw "Audacity" "Audacity.Audacity" } }
-        @{ Name = "Avidemux"; ScriptBlock = { Install-Sw "Avidemux (Montaggio Video)" "Avidemux.Avidemux" } }
-		@{ Name = "DaVinci Resolve"; ScriptBlock = { Download-Install-Sw "DaVinci Resolve", "https://swr.cloud.blackmagicdesign.com/DaVinciResolve/v20.3.2/DaVinci_Resolve_Studio_20.3.2_Windows.zip", "C:\Program Files\Blackmagic Design\DaVinci Resolve\DaVinci Resolve.exe" } }
-        @{ Name = "Gimp"; ScriptBlock = { Install-Sw "Gimp" "GIMP.GIMP.3" } }
-        @{ Name = "K-Lite Codec Pack Standard"; ScriptBlock = { Install-Sw "K-Lite Codec Pack Standard" "CodecGuide.K-LiteCodecPack.Standard" } }
-        @{ Name = "OBS Studio"; ScriptBlock = { Install-Sw "OBS Studio (Registrazione dello schermo)" "OBSProject.OBSStudio" } }
-        @{ Name = "VLC Player"; ScriptBlock = { Install-Sw "VLC Video Player" "VLC.VLC" } }
-        @{ Name = "Shutter Encoder"; ScriptBlock = { Install-Sw "Shutter Encoder" "PaulPacifico.ShutterEncoder" } }
-		@{ Name = "Subtitle Edit"; ScriptBlock = { Install-Sw "Subtitle Edit" "Nikse.SubtitleEdit" } }
-    )
-    
-    "SOFTWARE 3D" = @(
-        @{ Name = "Fusion 360"; ScriptBlock = { Download-Install-Sw "Fusion 360", "https://dl.appstreaming.autodesk.com/production/installers/Fusion%20Client%20Downloader.exe", "$env:LOCALAPPDATA\Autodesk\webdeploy\production\Fusion360.exe" } }
-		@{ Name = "PrusaSlicer"; ScriptBlock = { Install-Sw "PrusaSlicer" "Prusa3D.PrusaSlicer" } }
-        @{ Name = "OpenSCAD"; ScriptBlock = { Install-Sw "OpenSCAD" "OpenSCAD.OpenSCAD" } }
-        @{ Name = "Shapr3D"; ScriptBlock = { Install-Sw "Shapr3D" "Shapr3D.Shapr3D" } }
-        @{ Name = "Blender"; ScriptBlock = { Install-Sw "Blender" "Blender.Blender" } }
-        @{ Name = "Meshmixer"; ScriptBlock = { Install-Sw "Meshmixer" "Autodesk.Meshmixer" } }
-        @{ Name = "Ultimaker Cura"; ScriptBlock = { Install-Sw "Ultimaker Cura" "Ultimaker.Cura" } }
-    )
-    
-    "SOFTWARE PROGRAMMAZIONE" = @(
-        @{ Name = "draw.io"; ScriptBlock = { Install-Sw "draw.io" "jgraph.drawio" } }
-        @{ Name = "Visual Studio Code"; ScriptBlock = { Install-Sw "Microsoft Visual Studio Code" "Microsoft.VisualStudioCode" } }
-        @{ Name = "Docker Desktop"; ScriptBlock = { Install-Sw "Docker Desktop" "Docker.DockerDesktop" } }
-        @{ Name = "GitHub Desktop"; ScriptBlock = { Install-Sw "GitHub Desktop" "GitHub.GitHubDesktop" } }
-        @{ Name = "Node.js"; ScriptBlock = { Install-Sw "Node.js LTS" "OpenJSFoundation.NodeJS.LTS" } }
-        @{ Name = "FileZilla"; ScriptBlock = { Install-Sw "FileZilla" "FileZilla.FileZilla.Client" } }
-        @{ Name = "Postman"; ScriptBlock = { Install-Sw "Postman" "Postman.Postman" } }
-		@{ Name = "OpenAI Codex"; ScriptBlock = { Install-Sw "Codex" "OpenAI.Codex" } }
-        @{ Name = "XAMPP"; ScriptBlock = { Download-Install-Sw "XAMPP", "https://www.apachefriends.org/xampp-files/8.2.4/xampp-windows-x64-8.2.4-0-VS16-installer.exe", "C:\xampp\xampp-control.exe" } }
-    )
-    
-    "STAMPANTI" = @(
-        @{ Name = "Stampante Canon iR C3226"; ScriptBlock = {
-            $PortName = "Canon iR C3226 Scienze motorie"
-            $DriverPath = "$Global:LocalScriptRoot\Canon_IR_C3226_PCL6_Driver_V330_32_64_00\x64\Driver\CNP60MA64.INF"
-            $DriverModel = "Canon Generic Plus PCL6"
-            $IPAddress = "193.206.72.226"
-            $PrinterName = "Canon IR C3226"
-            
-            try {
-                Add-PrinterPort -Name $PortName -PrinterHostAddress $IPAddress -ErrorAction Stop
-                Write-Host "Porta creata." -ForegroundColor Green
-            } catch {
-                if ($_.Exception.HResult -eq -2147024713) {
-                    Write-Host "La porta esiste già." -ForegroundColor Yellow
-                }
-            }
-            
-            if (Get-PrinterPort -Name $PortName -ErrorAction SilentlyContinue) {
-                Set-PrinterPort -Name $PortName -SNMP $false
-            }
-            
-            if (Test-ProgramPath $DriverPath) {
-                rundll32 printui.dll,PrintUIEntry /if /b $PrinterName /f $DriverPath /r $PortName /m $DriverModel
-                Write-Host "Stampante Canon installata." -ForegroundColor Green
-            }
-        }}
-        @{ Name = "Stampante HP LaserJet E72425"; ScriptBlock = {
-            $PortName = "HP LaserJet MFP E72425 [44B668] Biostatistica"
-            $DriverPath = "$Global:LocalScriptRoot\LJE72425-E72430\hponef2a4_x64.inf"
-            $DriverModel = "HP LaserJet MFP E72425 E72430 PCL-6 (V4)"
-            $IPAddress = "193.206.68.205"
-            $PrinterName = "HP LaserJet MFP E72425"
-            
-            try {
-                Add-PrinterPort -Name $PortName -PrinterHostAddress $IPAddress -ErrorAction Stop
-                Write-Host "Porta creata." -ForegroundColor Green
-            } catch {
-                if ($_.Exception.HResult -eq -2147024713) {
-                    Write-Host "La porta esiste già." -ForegroundColor Yellow
-                }
-            }
-            
-            if (Test-ProgramPath $DriverPath) {
-                rundll32 printui.dll,PrintUIEntry /if /b $PrinterName /f $DriverPath /r $PortName /m $DriverModel
-                Write-Host "Stampante HP installata." -ForegroundColor Green
-            }
-        }}
-    )
+    # SOFTWARE ESSENZIALI
+    (New-AppDefinition -Name "Winget AutoUpdate" -Category "SOFTWARE ESSENZIALI" -Type "Script" -UninstallType "Winget" -UninstallId "Romanitho.Winget-AutoUpdate" -InstallScript {
+        winget install -e --id Romanitho.Winget-AutoUpdate --source winget --accept-package-agreements --silent
+        $wauPath = "$env:ProgramData\WAU"
+        $exclusionFileSource = Join-Path $Global:LocalScriptRoot "excluded_apps.txt"
+        $exclusionFileDest = Join-Path $wauPath "excluded_apps.txt"
+        if (Test-ProgramPath $exclusionFileSource) {
+            if (-not (Test-ProgramPath $wauPath)) { New-Item -Path $wauPath -ItemType Directory -Force | Out-Null }
+            Copy-Item -Path $exclusionFileSource -Destination $exclusionFileDest -Force
+            Write-Host "File excluded_apps.txt configurato." -ForegroundColor Green
+        }
+    }),
+    (New-AppDefinition -Name "WAU Settings GUI" -Category "SOFTWARE ESSENZIALI" -Id "KnifMelti.WAU-Settings-GUI"),
+    (New-AppDefinition -Name "Google Drive" -Category "SOFTWARE ESSENZIALI" -Id "Google.GoogleDrive"),
+    (New-AppDefinition -Name "Google Chrome" -Category "SOFTWARE ESSENZIALI" -Id "Google.Chrome"),
+    (New-AppDefinition -Name "7zip" -Category "SOFTWARE ESSENZIALI" -Id "7zip.7zip"),
+    (New-AppDefinition -Name "Zoom Workplace" -Category "SOFTWARE ESSENZIALI" -Id "Zoom.Zoom"),
 
-    "DISINSTALLAZIONE SOFTWARE" = @(
-        @{ Name = "pGina (originale)"; ScriptBlock = { Uninstall-Sw "pGina (originale)" "pGina.pGina" } }
-        @{ Name = "pGina (fork)"; ScriptBlock = { Uninstall-Sw "pGina (fork)" "pGina.fork" } }
-        @{ Name = "Microsoft Office 365"; ScriptBlock = { Uninstall-Sw "Microsoft Office 365" "Microsoft.Office" } }
-        @{ Name = "AutoHotkey"; ScriptBlock = { Uninstall-Sw "AutoHotkey" "AutoHotkey.AutoHotkey" } }
-        @{ Name = "Google Drive"; ScriptBlock = { Uninstall-Sw "Google Drive" "Google.GoogleDrive" } }
-        @{ Name = "Google Chrome"; ScriptBlock = { Uninstall-Sw "Google Chrome" "Google.Chrome" } }
-        @{ Name = "7zip"; ScriptBlock = { Uninstall-Sw "7zip" "7zip.7zip" } }
-        @{ Name = "Zoom Workplace"; ScriptBlock = { Uninstall-Sw "Zoom Workplace" "Zoom.Zoom" } }
-        @{ Name = "Microsoft Teams"; ScriptBlock = { Uninstall-Sw "Microsoft Teams" "XP8BT8DW290MPQ" } }
-        @{ Name = "Adobe Acrobat Reader"; ScriptBlock = { Uninstall-Sw "Adobe Acrobat Reader" "Adobe.Acrobat.Reader.64-bit" } }
-        @{ Name = "LibreOffice"; ScriptBlock = { Uninstall-Sw "LibreOffice" "TheDocumentFoundation.LibreOffice" } }
-        @{ Name = "WhatsApp"; ScriptBlock = { Uninstall-Sw "WhatsApp" "9NKSQGP7F2NH" } }
-        @{ Name = "PDFsam Basic"; ScriptBlock = { Uninstall-Sw "PDFsam Basic" "PDFsam.PDFsam" } }
-        @{ Name = "Eset Security (Antivirus)"; ScriptBlock = { Uninstall-Sw "Eset Security (Antivirus)" "ESET.Nod32" } }
-        @{ Name = "ShareX"; ScriptBlock = { Uninstall-Sw "ShareX" "ShareX.ShareX" } }
-        @{ Name = "Everything"; ScriptBlock = { Uninstall-Sw "Everything" "voidtools.Everything" } }
-        @{ Name = "KeePassXC"; ScriptBlock = { Uninstall-Sw "KeePassXC" "KeePassXCTeam.KeePassXC" } }
-        @{ Name = "Notepad++"; ScriptBlock = { Uninstall-Sw "Notepad++" "Notepad++.Notepad++" } }
-        @{ Name = "Mendeley Reference Manager"; ScriptBlock = { Uninstall-Sw "Mendeley Reference Manager" "Elsevier.MendeleyReferenceManager" } }
-        @{ Name = "Advanced Renamer"; ScriptBlock = { Uninstall-Sw "Advanced Renamer" "HulubuluSoftware.AdvancedRenamer" } }
-        @{ Name = "VirtualBox"; ScriptBlock = { Uninstall-Sw "VirtualBox" "Oracle.VirtualBox" }}
-        @{ Name = "WinSCP"; ScriptBlock = { Uninstall-Sw "WinSCP" "WinSCP.WinSCP" } }
-        @{ Name = "JASP"; ScriptBlock = { Uninstall-Sw "JASP" "UniversityOfAmsterdam.JASP" } }
-        @{ Name = "R Project"; ScriptBlock = { Uninstall-Sw "R Project" "RProject.R" } }
-        @{ Name = "GPower"; ScriptBlock = { Uninstall-Sw "GPower" "GPower.GPower" } }
-        @{ Name = "RStudio"; ScriptBlock = { Uninstall-Sw "RStudio" "Posit.RStudio" } }
-        @{ Name = "Orange"; ScriptBlock = { Uninstall-Sw "Orange" "UniversityOfLjubljana.Orange" } }
-        @{ Name = "Python"; ScriptBlock = { Uninstall-Sw "Python" "Python.Launcher" } }
-        @{ Name = "Jupyter Notebook"; ScriptBlock = { Uninstall-Sw "Jupyter Notebook" "ProjectJupyter.JupyterLab" } }
-        @{ Name = "Audacity"; ScriptBlock = { Uninstall-Sw "Audacity" "Audacity.Audacity" } }
-        @{ Name = "Avidemux"; ScriptBlock = { Uninstall-Sw "Avidemux (Montaggio Video)" "Avidemux.Avidemux" } }
-        @{ Name = "Gimp"; ScriptBlock = { Uninstall-Sw "Gimp" "GIMP.GIMP.3" } }
-        @{ Name = "K-Lite Codec Pack Standard"; ScriptBlock = { Uninstall-Sw "K-Lite Codec Pack Standard" "CodecGuide.K-LiteCodecPack.Standard" } }
-        @{ Name = "OBS Studio"; ScriptBlock = { Uninstall-Sw "OBS Studio (Registrazione dello schermo)" "OBSProject.OBSStudio" } }
-        @{ Name = "VLC Player"; ScriptBlock = { Uninstall-Sw "VLC Video Player" "VLC.VLC" } }
-        @{ Name = "Shutter Encoder"; ScriptBlock = { Uninstall-Sw "Shutter Encoder" "PaulPacifico.ShutterEncoder" } }
-		@{ Name = "Subtitle Edit"; ScriptBlock = { Uninstall-Sw "Subtitle Edit" "Nikse.SubtitleEdit" } }
-        @{ Name = "Visual Studio Code"; ScriptBlock = { Uninstall-Sw "Microsoft Visual Studio Code" "Microsoft.VisualStudioCode" } }
-        @{ Name = "FileZilla"; ScriptBlock = { Uninstall-Sw "FileZilla" "FileZilla.FileZilla.Client" } }
-        @{ Name = "PrusaSlicer"; ScriptBlock = { Uninstall-Sw "PrusaSlicer" "Prusa3D.PrusaSlicer" } }
-        @{ Name = "OpenSCAD"; ScriptBlock = { Uninstall-Sw "OpenSCAD" "OpenSCAD.OpenSCAD" } }
-        @{ Name = "Blender"; ScriptBlock = { Uninstall-Sw "Blender" "Blender.Blender" } }
-        @{ Name = "Ultimaker Cura"; ScriptBlock = { Uninstall-Sw "Ultimaker Cura" "Ultimaker.Cura" } }
-    )
-}
+    # SOFTWARE OFFICE & COMUNICAZIONE
+    (New-AppDefinition -Name "Microsoft 365 Copilot" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "9WZDNCRD29V9"),
+    (New-AppDefinition -Name "Microsoft 365" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Microsoft.Office"),
+    (New-AppDefinition -Name "Microsoft Office 2016 Professional Plus" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Type "Script" -UninstallType "None" -InstallScript {
+        $OfficeInstalled = Test-ProgramPath "C:\Program Files\Microsoft Office\Office16\WINWORD.EXE" -or Test-ProgramPath "C:\Program Files (x86)\Microsoft Office\Office16\WINWORD.EXE"
+        if ($OfficeInstalled) {
+            Write-Host "Office 2016 risulta già installato." -ForegroundColor Yellow
+        } else {
+            $OfficePath = "$Global:LocalScriptRoot\Office Professional Plus 2016 64bit Ita\setup.exe"
+            if (Test-ProgramPath $OfficePath) {
+                Start-Process $OfficePath -Wait
+                Write-Host "Installazione completata." -ForegroundColor Green
+            } else {
+                Write-Warning "File di installazione non trovato a $OfficePath"
+            }
+        }
+    }),
+    (New-AppDefinition -Name "Microsoft Teams" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "XP8BT8DW290MPQ"),
+    (New-AppDefinition -Name "Adobe Acrobat Reader" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Adobe.Acrobat.Reader.64-bit"),
+    (New-AppDefinition -Name "LibreOffice" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "TheDocumentFoundation.LibreOffice"),
+    (New-AppDefinition -Name "WhatsApp" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "9NKSQGP7F2NH"),
+    (New-AppDefinition -Name "PDFsam Basic" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "PDFsam.PDFsam"),
+    (New-AppDefinition -Name "Firma Digitale InfoCamiere" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Bit4id.Firma4ng.InfoCamiere"),
+    (New-AppDefinition -Name "Eset Security (Antivirus)" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "ESET.Nod32"),
+
+    # SOFTWARE UTILITÀ
+    (New-AppDefinition -Name "ShareX" -Category "SOFTWARE UTILITÀ" -Id "ShareX.ShareX"),
+    (New-AppDefinition -Name "Everything" -Category "SOFTWARE UTILITÀ" -Id "voidtools.Everything"),
+    (New-AppDefinition -Name "KeePassXC" -Category "SOFTWARE UTILITÀ" -Id "KeePassXCTeam.KeePassXC"),
+    (New-AppDefinition -Name "Notepad++" -Category "SOFTWARE UTILITÀ" -Id "Notepad++.Notepad++"),
+    (New-AppDefinition -Name "Mendeley Reference Manager" -Category "SOFTWARE UTILITÀ" -Id "Elsevier.MendeleyReferenceManager"),
+    (New-AppDefinition -Name "Advanced Renamer" -Category "SOFTWARE UTILITÀ" -Id "HulubuluSoftware.AdvancedRenamer"),
+    (New-AppDefinition -Name "AutoHotkey" -Category "SOFTWARE UTILITÀ" -Type "Download" -Url "https://www.autohotkey.com/download/ahk-v2.exe" -InstallPath "C:\Program Files\AutoHotkey\UX\AutoHotkeyUX.exe" -UninstallType "Winget" -UninstallId "AutoHotkey.AutoHotkey"),
+    (New-AppDefinition -Name "VirtualBox" -Category "SOFTWARE UTILITÀ" -Id "Oracle.VirtualBox"),
+    (New-AppDefinition -Name "WinSCP" -Category "SOFTWARE UTILITÀ" -Id "WinSCP.WinSCP"),
+    (New-AppDefinition -Name "Putty" -Category "SOFTWARE UTILITÀ" -Id "PuTTY.PuTTY"),
+    (New-AppDefinition -Name "Supremo Control" -Category "SOFTWARE UTILITÀ" -Type "Download" -Url "https://www.nanosystems.it/public/download/Supremo.exe" -InstallPath "C:\Program Files (x86)\Supremo\Supremo.exe" -UninstallType "None"),
+
+    # SOFTWARE STATISTICI
+    (New-AppDefinition -Name "JASP" -Category "SOFTWARE STATISTICI" -Id "UniversityOfAmsterdam.JASP"),
+    (New-AppDefinition -Name "R Project" -Category "SOFTWARE STATISTICI" -Id "RProject.R"),
+    (New-AppDefinition -Name "GPower" -Category "SOFTWARE STATISTICI" -Id "GPower.GPower"),
+    (New-AppDefinition -Name "RStudio" -Category "SOFTWARE STATISTICI" -Id "Posit.RStudio"),
+    (New-AppDefinition -Name "Orange" -Category "SOFTWARE STATISTICI" -Id "UniversityOfLjubljana.Orange"),
+    (New-AppDefinition -Name "Python" -Category "SOFTWARE STATISTICI" -Id "Python.Launcher"),
+    (New-AppDefinition -Name "Jupyter Notebook" -Category "SOFTWARE STATISTICI" -Id "ProjectJupyter.JupyterLab"),
+
+    # MULTIMEDIA
+    (New-AppDefinition -Name "Audacity" -Category "MULTIMEDIA" -Id "Audacity.Audacity"),
+    (New-AppDefinition -Name "Avidemux" -Category "MULTIMEDIA" -Id "Avidemux.Avidemux"),
+    (New-AppDefinition -Name "DaVinci Resolve" -Category "MULTIMEDIA" -Type "Download" -Url "https://swr.cloud.blackmagicdesign.com/DaVinciResolve/v20.3.2/DaVinci_Resolve_Studio_20.3.2_Windows.zip" -InstallPath "C:\Program Files\Blackmagic Design\DaVinci Resolve\DaVinci Resolve.exe" -UninstallType "None"),
+    (New-AppDefinition -Name "Gimp" -Category "MULTIMEDIA" -Id "GIMP.GIMP.3"),
+    (New-AppDefinition -Name "K-Lite Codec Pack Standard" -Category "MULTIMEDIA" -Id "CodecGuide.K-LiteCodecPack.Standard"),
+    (New-AppDefinition -Name "OBS Studio" -Category "MULTIMEDIA" -Id "OBSProject.OBSStudio"),
+    (New-AppDefinition -Name "VLC Player" -Category "MULTIMEDIA" -Id "VLC.VLC"),
+    (New-AppDefinition -Name "Shutter Encoder" -Category "MULTIMEDIA" -Id "PaulPacifico.ShutterEncoder"),
+    (New-AppDefinition -Name "Subtitle Edit" -Category "MULTIMEDIA" -Id "Nikse.SubtitleEdit"),
+
+    # SOFTWARE 3D
+    (New-AppDefinition -Name "Fusion 360" -Category "SOFTWARE 3D" -Type "Download" -Url "https://dl.appstreaming.autodesk.com/production/installers/Fusion%20Client%20Downloader.exe" -InstallPath "$env:LOCALAPPDATA\Autodesk\webdeploy\production\Fusion360.exe" -UninstallType "None"),
+    (New-AppDefinition -Name "PrusaSlicer" -Category "SOFTWARE 3D" -Id "Prusa3D.PrusaSlicer"),
+    (New-AppDefinition -Name "OpenSCAD" -Category "SOFTWARE 3D" -Id "OpenSCAD.OpenSCAD"),
+    (New-AppDefinition -Name "Shapr3D" -Category "SOFTWARE 3D" -Id "Shapr3D.Shapr3D"),
+    (New-AppDefinition -Name "Blender" -Category "SOFTWARE 3D" -Id "Blender.Blender"),
+    (New-AppDefinition -Name "Meshmixer" -Category "SOFTWARE 3D" -Id "Autodesk.Meshmixer"),
+    (New-AppDefinition -Name "Ultimaker Cura" -Category "SOFTWARE 3D" -Id "Ultimaker.Cura"),
+
+    # SOFTWARE PROGRAMMAZIONE
+    (New-AppDefinition -Name "draw.io" -Category "SOFTWARE PROGRAMMAZIONE" -Id "jgraph.drawio"),
+    (New-AppDefinition -Name "Visual Studio Code" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Microsoft.VisualStudioCode"),
+    (New-AppDefinition -Name "Docker Desktop" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Docker.DockerDesktop"),
+    (New-AppDefinition -Name "GitHub Desktop" -Category "SOFTWARE PROGRAMMAZIONE" -Id "GitHub.GitHubDesktop"),
+    (New-AppDefinition -Name "Node.js" -Category "SOFTWARE PROGRAMMAZIONE" -Id "OpenJSFoundation.NodeJS.LTS"),
+    (New-AppDefinition -Name "FileZilla" -Category "SOFTWARE PROGRAMMAZIONE" -Id "FileZilla.FileZilla.Client"),
+    (New-AppDefinition -Name "Postman" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Postman.Postman"),
+    (New-AppDefinition -Name "OpenAI Codex" -Category "SOFTWARE PROGRAMMAZIONE" -Id "OpenAI.Codex"),
+    (New-AppDefinition -Name "XAMPP" -Category "SOFTWARE PROGRAMMAZIONE" -Type "Download" -Url "https://www.apachefriends.org/xampp-files/8.2.4/xampp-windows-x64-8.2.4-0-VS16-installer.exe" -InstallPath "C:\xampp\xampp-control.exe" -UninstallType "None"),
+
+    # STAMPANTI
+    (New-AppDefinition -Name "Stampante Canon iR C3226" -Category "STAMPANTI" -Type "Script" -UninstallType "None" -InstallScript {
+        $PortName = "Canon iR C3226 Scienze motorie"
+        $DriverPath = "$Global:LocalScriptRoot\Canon_IR_C3226_PCL6_Driver_V330_32_64_00\x64\Driver\CNP60MA64.INF"
+        $DriverModel = "Canon Generic Plus PCL6"
+        $IPAddress = "193.206.72.226"
+        $PrinterName = "Canon IR C3226"
+        try { Add-PrinterPort -Name $PortName -PrinterHostAddress $IPAddress -ErrorAction Stop } catch {}
+        if (Get-PrinterPort -Name $PortName -ErrorAction SilentlyContinue) { Set-PrinterPort -Name $PortName -SNMP $false }
+        if (Test-ProgramPath $DriverPath) {
+            rundll32 printui.dll,PrintUIEntry /if /b $PrinterName /f $DriverPath /r $PortName /m $DriverModel
+            Write-Host "Stampante Canon installata." -ForegroundColor Green
+        }
+    }),
+    (New-AppDefinition -Name "Stampante HP LaserJet E72425" -Category "STAMPANTI" -Type "Script" -UninstallType "None" -InstallScript {
+        $PortName = "HP LaserJet MFP E72425 [44B668] Biostatistica"
+        $DriverPath = "$Global:LocalScriptRoot\LJE72425-E72430\hponef2a4_x64.inf"
+        $DriverModel = "HP LaserJet MFP E72425 E72430 PCL-6 (V4)"
+        $IPAddress = "193.206.68.205"
+        $PrinterName = "HP LaserJet MFP E72425"
+        try { Add-PrinterPort -Name $PortName -PrinterHostAddress $IPAddress -ErrorAction Stop } catch {}
+        if (Test-ProgramPath $DriverPath) {
+            rundll32 printui.dll,PrintUIEntry /if /b $PrinterName /f $DriverPath /r $PortName /m $DriverModel
+            Write-Host "Stampante HP installata." -ForegroundColor Green
+        }
+    })
+)
 
 # ============================================================================
-# FUNZIONE MENU
+# 6. SISTEMA DI MENU INTERATTIVO E GESTIONE CODA
 # ============================================================================
-
 function Show-MainMenu {
     do {
         Clear-Host
-        Write-Host (Show-CenteredBox -action "MENU PRINCIPALE`r`nInstallazione Pacchetti Software Windows" -rows 3) -ForegroundColor Cyan
-        Write-Host "`n"
-        
-        $categoryIndex = 1
-        $displayedCategories = @()
-        
-        # Filtra e ordina le categorie da mostrare
-        $categoriesToShow = $MenuItems.Keys | Where-Object { $_ -ne "MICROSOFT OFFICE" } | Sort-Object
-        foreach ($category in $categoriesToShow) {
-            Write-Host "  [$($displayedCategories.Count + 1)] $category" -ForegroundColor Yellow
-            $displayedCategories += $category
+        $headerText = "MENU PRINCIPALE`r`nInstallazione Pacchetti Software Windows"
+        if ($Global:InstallQueue.Count -gt 0) {
+            $headerText += "`r`n[ Elementi in Coda: $($Global:InstallQueue.Count) ]"
         }
-        
+        Write-Host (Show-CenteredBox -action $headerText -rows 4) -ForegroundColor Cyan
+        Write-Host "`n"
+
+        $categories = $Global:AppCatalog.Category | Select-Object -Unique | Sort-Object
+        $index = 1
+
+        foreach ($cat in $categories) {
+            Write-Host "  [$index] $cat" -ForegroundColor Yellow
+            $index++
+        }
+
+        Write-Host "`n  [Q] Gestione / Esecuzione Coda ($($Global:InstallQueue.Count) elementi)" -ForegroundColor Green
+        Write-Host "  [U] Disinstallazione Software" -ForegroundColor Magenta
         Write-Host "  [0] Esci" -ForegroundColor Red
         Write-Host "`n"
-        $choice = Read-Host "Seleziona una categoria (0 per uscire)"
-        
-        # Se l'utente preme Invio o digita 0, esce
-        if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq "0") {
+
+        $choice = Read-Host "Seleziona un'opzione"
+
+        if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) {
             Write-Host "Uscita in corso..." -ForegroundColor Red
             exit
-        }
-        
-        $categoryIndex = [int]$choice - 1
-        
-        if ($categoryIndex -ge 0 -and $categoryIndex -lt $displayedCategories.Count) {
-            $selectedCategory = $displayedCategories[$categoryIndex]
-            Show-SubMenu -Category $selectedCategory
+        } elseif ($choice -eq "Q" -or $choice -eq "q") {
+            Show-QueueMenu
+        } elseif ($choice -eq "U" -or $choice -eq "u") {
+            Show-UninstallMenu
         } else {
-            Write-Host "Scelta non valida. Premi un tasto per continuare..." -ForegroundColor Red
-            Read-Host
+            $catIndex = [int]$choice - 1
+            if ($catIndex -ge 0 -and $catIndex -lt $categories.Count) {
+                Show-SubMenu -Category $categories[$catIndex]
+            } else {
+                Write-Host "Scelta non valida." -ForegroundColor Red
+                Start-Sleep -Seconds 1
+            }
         }
-        
     } while ($true)
 }
 
 function Show-SubMenu {
     param([string]$Category)
-    
+
     do {
         Clear-Host
         Write-Host (Show-CenteredBox -action $Category -rows 3) -ForegroundColor Cyan
         Write-Host "`n"
-        
-        $items = $MenuItems[$Category]
-        $itemIndex = 1
-        
+
+        $items = $Global:AppCatalog | Where-Object { $_.Category -eq $Category }
+        $idx = 1
+
         foreach ($item in $items) {
-            Write-Host "  [$itemIndex] $($item.Name)" -ForegroundColor Green
-            $itemIndex++
+            $inQueue = if ($Global:InstallQueue.Contains($item)) { " [in Coda]" } else { "" }
+            Write-Host "  [$idx] $($item.Name)$inQueue" -ForegroundColor Green
+            $idx++
         }
-        
-        Write-Host "  [$itemIndex] Installa Tutti (con conferma)" -ForegroundColor Cyan
-        $installAllIndex = $itemIndex
-        $itemIndex++
-        
-        Write-Host "  [$itemIndex] Installa Tutti (senza conferma)" -ForegroundColor DarkRed
-        $installAllNoConfirmIndex = $itemIndex
-        $itemIndex++
-        
+
+        Write-Host "`n  [A] Aggiungi TUTTI gli elementi della categoria alla coda" -ForegroundColor Yellow
+        Write-Host "  [I] Installa TUTTI immediatamente (con conferma)" -ForegroundColor Cyan
+        Write-Host "  [X] Installa TUTTI immediatamente (senza conferma)" -ForegroundColor DarkRed
         Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
         Write-Host "`n"
-        
-        $choice = Read-Host "Seleziona una o più opzioni (es. 1,3,5) o 0 per tornare indietro"
 
-        # Se l'utente preme Invio senza inserire nulla, torna al menu principale
-        if ([string]::IsNullOrWhiteSpace($choice)) {
-            return # Esce dal sottomenu
-        }
-        
-        $singleChoice = -1
-        [void]($choice -match '^\d+$' -and [int]::TryParse($choice, [ref]$singleChoice))
-        
-        if ($singleChoice -eq $installAllIndex + 1) {
-            Write-Host "`nInstallazione di tutti i software della categoria con conferma..." -ForegroundColor Cyan
+        $choice = Read-Host "Seleziona uno o piu numeri (es. 1,3) oppure un'azione"
+
+        if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) { return }
+
+        if ($choice -eq "A" -or $choice -eq "a") {
             foreach ($item in $items) {
-                & $item.ScriptBlock
+                if (-not $Global:InstallQueue.Contains($item)) { $Global:InstallQueue.Add($item) }
             }
-            Write-Host "`nInstallazione di tutti i software completata. Premi un tasto per continuare..." -ForegroundColor Green
-            Read-Host
+            Write-Host "`nAggiunti tutti gli elementi alla coda!" -ForegroundColor Green
+            Start-Sleep -Seconds 1
         }
-        elseif ($singleChoice -eq $installAllNoConfirmIndex + 1) {
-            Write-Host "`nInstallazione di tutti i software della categoria senza conferma..." -ForegroundColor DarkRed
-            foreach ($item in $items) {
-                # Verifica se lo scriptblock contiene una chiamata Install-Sw
-                $itemScriptString = $item.ScriptBlock.ToString()
-                if ($itemScriptString -like "*Install-Sw*") {
-                    Invoke-Command -ScriptBlock ([scriptblock]::Create($itemScriptString.Replace("{", "").Replace("}", "").Trim() + " -Ask `$false"))
-                } else {
-                    # Per altri script (non Install-Sw), esegui normalmente
-                    & $item.ScriptBlock
-                }
-            }
-            Write-Host "`nInstallazione di tutti i software completata. Premi un tasto per continuare..." -ForegroundColor Green
-            Read-Host
+        elseif ($choice -eq "I" -or $choice -eq "i") {
+            foreach ($item in $items) { Invoke-AppInstall -App $item -Ask $true }
+            Read-Host "Operazioni completate. Premi Invio per proseguire"
+        }
+        elseif ($choice -eq "X" -or $choice -eq "x") {
+            foreach ($item in $items) { Invoke-AppInstall -App $item -Ask $false }
+            Read-Host "Operazioni completate. Premi Invio per proseguire"
         }
         else {
-            # Gestione selezione multipla (es. "1,3,5")
-            if ($choice -like "*,*") {
-                $selectedIndices = $choice.Split(',').Trim() | ForEach-Object {
-                    $num = 0
-                    if ([int]::TryParse($_, [ref]$num)) { $num - 1 }
-                }
-                
-                foreach ($index in $selectedIndices) {
-                    if ($index -ge 0 -and $index -lt $items.Count) {
-                        $item = $items[$index]
-                        Write-Host "`nEsecuzione (senza conferma): $($item.Name)..." -ForegroundColor Cyan
-                        $itemScriptString = $item.ScriptBlock.ToString()
-                        Invoke-Command -ScriptBlock ([scriptblock]::Create($itemScriptString.Replace("{", "").Replace("}", "").Trim() + " -Ask `$false"))
+            # Gestione selezione singola o multipla
+            $indices = $choice.Split(',').Trim() | ForEach-Object {
+                $n = 0
+                if ([int]::TryParse($_, [ref]$n)) { $n - 1 }
+            }
+
+            foreach ($i in $indices) {
+                if ($i -ge 0 -and $i -lt $items.Count) {
+                    $selectedApp = $items[$i]
+                    Write-Host "`nSelezionato: $($selectedApp.Name)" -ForegroundColor Cyan
+                    Write-Host "1. Installa subito (con conferma)"
+                    Write-Host "2. Installa subito (senza conferma)"
+                    Write-Host "3. Aggiungi alla coda di installazione"
+                    $act = Read-Host "Scegli azione (Default: 1)"
+
+                    switch ($act) {
+                        "2" { Invoke-AppInstall -App $selectedApp -Ask $false }
+                        "3" { 
+                            if (-not $Global:InstallQueue.Contains($selectedApp)) {
+                                $Global:InstallQueue.Add($selectedApp)
+                                Write-Host "Aggiunto alla coda." -ForegroundColor Green
+                            }
+                        }
+                        default { Invoke-AppInstall -App $selectedApp -Ask $true }
                     }
                 }
-                Write-Host "`nOperazioni completate. Premi un tasto per continuare..." -ForegroundColor Green
-                Read-Host
-            # Gestione selezione singola
-            } else {
-                $itemIndex = [int]$choice - 1
-                if ($itemIndex -ge 0 -and $itemIndex -lt $items.Count) {
-                    $selectedItem = $items[$itemIndex]
-                    Write-Host "`nEsecuzione: $($selectedItem.Name)..." -ForegroundColor Cyan
-                    & $selectedItem.ScriptBlock
-                    Write-Host "`nOperazione completata. Premi un tasto per continuare..." -ForegroundColor Green
-                    Read-Host
-                } else {
-                    Write-Host "Scelta non valida. Premi un tasto per continuare..." -ForegroundColor Red
-                    Read-Host
-                }
             }
+            Start-Sleep -Seconds 1
         }
-        
     } while ($true)
 }
 
 # ============================================================================
-# MENU pGINA
+# 7. MENU GESTIONE CODA DI INSTALLAZIONE
 # ============================================================================
+function Show-QueueMenu {
+    do {
+        Clear-Host
+        Write-Host (Show-CenteredBox -action "CODA DI INSTALLAZIONE ($($Global:InstallQueue.Count) elementi)" -rows 3) -ForegroundColor Green
+        Write-Host "`n"
+
+        if ($Global:InstallQueue.Count -eq 0) {
+            Write-Host "La coda è attualmente vuota.`n" -ForegroundColor Yellow
+            Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
+            Read-Host
+            return
+        }
+
+        $i = 1
+        foreach ($app in $Global:InstallQueue) {
+            Write-Host "  [$i] $($app.Name) [$($app.Category)]" -ForegroundColor Green
+            $i++
+        }
+
+        Write-Host "`n  [1] Esegui installazione della Coda (CON conferma per ciascuno)" -ForegroundColor Cyan
+        Write-Host "  [2] Esegui installazione della Coda (SENZA conferma - Automatico)" -ForegroundColor DarkRed
+        Write-Host "  [R] Rimuovi un elemento dalla coda" -ForegroundColor Yellow
+        Write-Host "  [C] Svuota completamente la coda" -ForegroundColor Red
+        Write-Host "  [0] Torna al menu principale" -ForegroundColor White
+        Write-Host "`n"
+
+        $choice = Read-Host "Seleziona un'opzione"
+
+        if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) { return }
+
+        switch ($choice) {
+            "1" {
+                foreach ($app in @($Global:InstallQueue)) {
+                    Invoke-AppInstall -App $app -Ask $true
+                }
+                $Global:InstallQueue.Clear()
+                Read-Host "`nEsecuzione coda completata. Premi Invio per proseguire"
+                return
+            }
+            "2" {
+                foreach ($app in @($Global:InstallQueue)) {
+                    Invoke-AppInstall -App $app -Ask $false
+                }
+                $Global:InstallQueue.Clear()
+                Read-Host "`nEsecuzione automatica coda completata. Premi Invio per proseguire"
+                return
+            }
+            "R" {
+                $remIdx = Read-Host "Inserisci il numero dell'elemento da rimuovere"
+                $num = 0
+                if ([int]::TryParse($remIdx, [ref]$num) -and $num -ge 1 -and $num -le $Global:InstallQueue.Count) {
+                    $removed = $Global:InstallQueue[$num - 1]
+                    $Global:InstallQueue.RemoveAt($num - 1)
+                    Write-Host "Rimosso '$($removed.Name)' dalla coda." -ForegroundColor Green
+                    Start-Sleep -Seconds 1
+                }
+            }
+            "C" {
+                $Global:InstallQueue.Clear()
+                Write-Host "Coda svuotata." -ForegroundColor Green
+                Start-Sleep -Seconds 1
+            }
+        }
+    } while ($true)
+}
+
+# ============================================================================
+# 8. MENU DISINSTALLAZIONE SOFTWARE
+# ============================================================================
+function Show-UninstallMenu {
+    do {
+        Clear-Host
+        Write-Host (Show-CenteredBox -action "MENU DISINSTALLAZIONE SOFTWARE" -rows 3) -ForegroundColor Magenta
+        Write-Host "`n"
+
+        $uninstallable = $Global:AppCatalog | Where-Object { $_.UninstallType -ne "None" }
+        $idx = 1
+
+        foreach ($app in $uninstallable) {
+            Write-Host "  [$idx] $($app.Name)" -ForegroundColor Yellow
+            $idx++
+        }
+
+        Write-Host "`n  [0] Torna al menu principale" -ForegroundColor Red
+        Write-Host "`n"
+
+        $choice = Read-Host "Seleziona l'elemento da disinstallare (o piu numeri separati da virgola)"
+
+        if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) { return }
+
+        $indices = $choice.Split(',').Trim() | ForEach-Object {
+            $n = 0
+            if ([int]::TryParse($_, [ref]$n)) { $n - 1 }
+        }
+
+        foreach ($i in $indices) {
+            if ($i -ge 0 -and $i -lt $uninstallable.Count) {
+                Invoke-AppUninstall -App $uninstallable[$i] -Ask $true
+            }
+        }
+        Read-Host "`nOperazione completata. Premi Invio per continuare"
+    } while ($true)
+}
+
+# Submenu speciale per pGina
 function Show-PGinaMenu {
     $action = "Installazione di pGina"
-    $description = "Verrà installata la versione scelta di pGina, software per l'accesso a Windows tramite LDAP, MySQL, ecc."
     $title = Show-CenteredBox -action $action
-    $message = "Vuoi procedere alla $action`?`r`n$description"
-    
+    $message = "Scegli la versione di pGina da installare:"
+
     $choicesPGina = [System.Management.Automation.Host.ChoiceDescription[]]@(
         New-Object System.Management.Automation.Host.ChoiceDescription "Sì, pGina &originale 3.1.8.0", "pGina originale."
         New-Object System.Management.Automation.Host.ChoiceDescription "Sì, pGina &fork 3.9.9.12", "pGina Fork."
-        New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Salta questa operazione."
-        New-Object System.Management.Automation.Host.ChoiceDescription "&Esci", "Interrompe l'intero script."
+        New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Salta."
+        New-Object System.Management.Automation.Host.ChoiceDescription "&Esci", "Interrompe lo script."
     )
-    
+
     $decision = $host.UI.PromptForChoice($title, $message, $choicesPGina, 2)
-    
+
     switch ($decision) {
         0 {
-            $name = "pGina 3.1.8.0"
-            $installed = Test-ProgramPath "C:\Program Files\pGina.fork\pGina.Configuration.exe"
-            if ($installed) {
-                Write-Host "$name sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
-            } else {
-                $path = "$Global:LocalScriptRoot\pgina\pGinaSetup.exe"
-                $dir = Split-Path $path
-                if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
-                Write-Host "Download di $name in corso..." -ForegroundColor Cyan
-                Invoke-WebRequest -Uri "https://github.com/pgina/pgina/releases/download/v3.1.8.0/pGinaSetup-3.1.8.0.exe" -OutFile $path
-                if (Test-ProgramPath $path) {
-                    Write-Host "Procedo con l'installazione di $name. Ricordati di chiuderlo per continuare lo script..." -ForegroundColor Cyan
-                    Start-Process $path -Wait
-                    Set-Location $Global:LocalScriptRoot
-                    $user_img_path = (Join-Path (Get-Location).Path "grafica_unipv\unipv_logo_RGB.bmp")
-                    if (Test-ProgramPath $user_img_path) {
-                        Copy-Item $user_img_path -Destination "C:\unipv_logo_RGB.bmp" -Force
-                    }
-                    Write-Host "Installazione di $name completata." -ForegroundColor Green
-                } else {
-                    Write-Warning "File di installazione non trovato al percorso $path. Salto l'installazione."
-                }
-            }
+            Download-Install-Sw -Name "pGina 3.1.8.0" -Url "https://github.com/pgina/pgina/releases/download/v3.1.8.0/pGinaSetup-3.1.8.0.exe" -InstallPath "C:\Program Files\pGina\pGina.Configuration.exe"
         }
         1 {
-            $name = "pGina fork 3.9.9.12"
-            $installed = Test-ProgramPath "C:\Program Files\pGina\pGina.Configuration.exe"
-            if ($installed) {
-                Write-Host "$name sembra essere già installato. Salto l'installazione." -ForegroundColor Yellow
-            } else {
-                $path = "$Global:LocalScriptRoot\pgina.fork\pGinaSetup.exe"
-                $dir = Split-Path $path
-                if (!(Test-ProgramPath $dir)) { New-Item -ItemType Directory -Path $dir -Force }
-                Write-Host "Download di $name in corso..." -ForegroundColor Cyan
-                Invoke-WebRequest -Uri "https://github.com/MutonUfoAI/pgina/releases/download/3.9.9.12/pGinaSetup-3.9.9.12.exe" -OutFile $path
-                if (Test-ProgramPath $path) {
-                    Write-Host "Procedo con l'installazione di $name. Ricordati di chiuderlo per continuare lo script..." -ForegroundColor Cyan
-                    Start-Process $path -Wait
-                    Set-Location $Global:LocalScriptRoot
-                    $user_img_path = (Join-Path (Get-Location).Path "grafica_unipv\unipv_logo_RGB.bmp")
-                    if (Test-ProgramPath $user_img_path) {
-                        Copy-Item $user_img_path -Destination "C:\unipv_logo_RGB.bmp" -Force
-                    }
-                    Write-Host "Installazione di $name completata." -ForegroundColor Green
-                } else {
-                    Write-Warning "File di installazione non trovato al percorso $path. Salto l'installazione."
-                }
-            }
+            Download-Install-Sw -Name "pGina fork 3.9.9.12" -Url "https://github.com/MutonUfoAI/pgina/releases/download/3.9.9.12/pGinaSetup-3.9.9.12.exe" -InstallPath "C:\Program Files\pGina.fork\pGina.Configuration.exe"
         }
-        2 {
-            Write-Host "$action saltata." -ForegroundColor Yellow
-        }
-        3 {
-            Write-Host "Uscita in corso..." -ForegroundColor Red
-            exit 
-        }
+        2 { Write-Host "Operazione pGina saltata." -ForegroundColor Yellow }
+        3 { exit }
     }
 }
 
 # ============================================================================
-# AVVIA IL MENU
+# AVVIO DELLO SCRIPT
 # ============================================================================
 Show-MainMenu
-Write-Host (Show-CenteredBox -action "INSTALLAZIONE COMPLETATA" -rows 3) -ForegroundColor Green
+Write-Host (Show-CenteredBox -action "OPERAZIONI COMPLETATE" -rows 3) -ForegroundColor Green
 pause
