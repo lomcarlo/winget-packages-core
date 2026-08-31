@@ -459,6 +459,9 @@ $Global:AppCatalog = @(
 # ============================================================================
 # 6. SISTEMA DI MENU INTERATTIVO E GESTIONE CODA
 # ============================================================================
+# ============================================================================
+# SISTEMA DI MENU INTERATTIVO E GESTIONE CODA (CORRETTO)
+# ============================================================================
 function Show-MainMenu {
     do {
         Clear-Host
@@ -479,26 +482,30 @@ function Show-MainMenu {
 
         Write-Host "`n  [Q] Gestione / Esecuzione Coda ($($Global:InstallQueue.Count) elementi)" -ForegroundColor Green
         Write-Host "  [U] Disinstallazione Software" -ForegroundColor Magenta
-        Write-Host "  [0] Esci" -ForegroundColor Red
+        Write-Host "  [0] Esci dallo script" -ForegroundColor Red
         Write-Host "`n"
 
-        $choice = Read-Host "Seleziona un'opzione"
+        $rawChoice = Read-Host "Seleziona un'opzione"
+        $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
 
-        if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) {
+        if ($choice -eq "0") {
             Write-Host "Uscita in corso..." -ForegroundColor Red
             exit
         } elseif ($choice -eq "Q" -or $choice -eq "q") {
             Show-QueueMenu
         } elseif ($choice -eq "U" -or $choice -eq "u") {
             Show-UninstallMenu
-        } else {
-            $catIndex = [int]$choice - 1
-            if ($catIndex -ge 0 -and $catIndex -lt $categories.Count) {
-                Show-SubMenu -Category $categories[$catIndex]
+        } elseif ([int]::TryParse($choice, [ref]$catIndex)) {
+            $realIndex = $catIndex - 1
+            if ($realIndex -ge 0 -and $realIndex -lt $categories.Count) {
+                Show-SubMenu -Category $categories[$realIndex]
             } else {
                 Write-Host "Scelta non valida." -ForegroundColor Red
                 Start-Sleep -Seconds 1
             }
+        } else {
+            Write-Host "Opzione non valida." -ForegroundColor Red
+            Start-Sleep -Seconds 1
         }
     } while ($true)
 }
@@ -520,15 +527,19 @@ function Show-SubMenu {
             $idx++
         }
 
-        Write-Host "`n  [A] Aggiungi TUTTI gli elementi della categoria alla coda" -ForegroundColor Yellow
+        Write-Host "`n  [A] Aggiungi TUTTI gli elementi alla coda" -ForegroundColor Yellow
         Write-Host "  [I] Installa TUTTI immediatamente (con conferma)" -ForegroundColor Cyan
         Write-Host "  [X] Installa TUTTI immediatamente (senza conferma)" -ForegroundColor DarkRed
         Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
         Write-Host "`n"
 
-        $choice = Read-Host "Seleziona uno o piu numeri (es. 1,3) oppure un'azione"
+        $rawChoice = Read-Host "Seleziona uno o piu numeri (es. 1,3) oppure 0 per tornare indietro"
+        $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
 
-        if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) { return }
+        # Ritorno al menu principale
+        if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) { 
+            return 
+        }
 
         if ($choice -eq "A" -or $choice -eq "a") {
             foreach ($item in $items) {
@@ -549,7 +560,7 @@ function Show-SubMenu {
             # Gestione selezione singola o multipla
             $indices = $choice.Split(',').Trim() | ForEach-Object {
                 $n = 0
-                if ([int]::TryParse($_, [ref]$n)) { $n - 1 }
+                if ([int]::TryParse($_, [ref]$n)) { $n - 1 } else { -1 }
             }
 
             foreach ($i in $indices) {
@@ -559,17 +570,27 @@ function Show-SubMenu {
                     Write-Host "1. Installa subito (con conferma)"
                     Write-Host "2. Installa subito (senza conferma)"
                     Write-Host "3. Aggiungi alla coda di installazione"
-                    $act = Read-Host "Scegli azione (Default: 1)"
+                    Write-Host "0. Annulla e torna indietro"
+                    
+                    $actRaw = Read-Host "Scegli azione (Default: 1)"
+                    $act = if ($actRaw) { $actRaw.Trim() } else { "1" }
 
                     switch ($act) {
-                        "2" { Invoke-AppInstall -App $selectedApp -Ask $false }
+                        "0" { 
+                            Write-Host "Operazione annullata." -ForegroundColor Yellow 
+                        }
+                        "2" { 
+                            Invoke-AppInstall -App $selectedApp -Ask $false 
+                        }
                         "3" { 
                             if (-not $Global:InstallQueue.Contains($selectedApp)) {
                                 $Global:InstallQueue.Add($selectedApp)
                                 Write-Host "Aggiunto alla coda." -ForegroundColor Green
                             }
                         }
-                        default { Invoke-AppInstall -App $selectedApp -Ask $true }
+                        default { 
+                            Invoke-AppInstall -App $selectedApp -Ask $true 
+                        }
                     }
                 }
             }
@@ -600,14 +621,15 @@ function Show-QueueMenu {
             $i++
         }
 
-        Write-Host "`n  [1] Esegui installazione della Coda (CON conferma per ciascuno)" -ForegroundColor Cyan
-        Write-Host "  [2] Esegui installazione della Coda (SENZA conferma - Automatico)" -ForegroundColor DarkRed
+        Write-Host "`n  [1] Esegui installazione della Coda (CON conferma)" -ForegroundColor Cyan
+        Write-Host "  [2] Esegui installazione della Coda (SENZA conferma)" -ForegroundColor DarkRed
         Write-Host "  [R] Rimuovi un elemento dalla coda" -ForegroundColor Yellow
         Write-Host "  [C] Svuota completamente la coda" -ForegroundColor Red
         Write-Host "  [0] Torna al menu principale" -ForegroundColor White
         Write-Host "`n"
 
-        $choice = Read-Host "Seleziona un'opzione"
+        $rawChoice = Read-Host "Seleziona un'opzione"
+        $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
 
         if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) { return }
 
@@ -631,7 +653,7 @@ function Show-QueueMenu {
             "R" {
                 $remIdx = Read-Host "Inserisci il numero dell'elemento da rimuovere"
                 $num = 0
-                if ([int]::TryParse($remIdx, [ref]$num) -and $num -ge 1 -and $num -le $Global:InstallQueue.Count) {
+                if ([int]::TryParse($remIdx.Trim(), [ref]$num) -and $num -ge 1 -and $num -le $Global:InstallQueue.Count) {
                     $removed = $Global:InstallQueue[$num - 1]
                     $Global:InstallQueue.RemoveAt($num - 1)
                     Write-Host "Rimosso '$($removed.Name)' dalla coda." -ForegroundColor Green
@@ -667,13 +689,14 @@ function Show-UninstallMenu {
         Write-Host "`n  [0] Torna al menu principale" -ForegroundColor Red
         Write-Host "`n"
 
-        $choice = Read-Host "Seleziona l'elemento da disinstallare (o piu numeri separati da virgola)"
+        $rawChoice = Read-Host "Seleziona l'elemento da disinstallare o 0 per tornare indietro"
+        $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
 
         if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) { return }
 
         $indices = $choice.Split(',').Trim() | ForEach-Object {
             $n = 0
-            if ([int]::TryParse($_, [ref]$n)) { $n - 1 }
+            if ([int]::TryParse($_, [ref]$n)) { $n - 1 } else { -1 }
         }
 
         foreach ($i in $indices) {
