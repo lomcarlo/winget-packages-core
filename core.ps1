@@ -459,17 +459,14 @@ $Global:AppCatalog = @(
 # ============================================================================
 # 6. SISTEMA DI MENU INTERATTIVO E GESTIONE CODA
 # ============================================================================
-# ============================================================================
-# SISTEMA DI MENU INTERATTIVO E GESTIONE CODA (CORRETTO)
-# ============================================================================
 function Show-MainMenu {
     do {
         Clear-Host
-        $headerText = "MENU PRINCIPALE`r`nInstallazione Pacchetti Software Windows"
+        $headerText = "MENU PRINCIPALE`r`nInstallazione Pacchetti Software Windows`r`nVersione 2.0"
         if ($Global:InstallQueue.Count -gt 0) {
             $headerText += "`r`n[ Elementi in Coda: $($Global:InstallQueue.Count) ]"
         }
-        Write-Host (Show-CenteredBox -action $headerText -rows 4) -ForegroundColor Cyan
+        Write-Host (Show-CenteredBox -action $headerText -rows 5) -ForegroundColor Cyan
         Write-Host "`n"
 
         $categories = $Global:AppCatalog.Category | Select-Object -Unique | Sort-Object
