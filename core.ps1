@@ -412,6 +412,7 @@ $MenuItems = @{
 		@{ Name = "AutoHotkey"; ScriptBlock = { Download-Install-Sw "AutoHotkey", "https://www.autohotkey.com/download/ahk-v2.exe", "C:\Program Files\AutoHotkey\UX\AutoHotkeyUX.exe" } }
         @{ Name = "VirtualBox"; ScriptBlock = { Install-Sw "VirtualBox" "Oracle.VirtualBox" }}
         @{ Name = "WinSCP"; ScriptBlock = { Install-Sw "WinSCP" "WinSCP.WinSCP" } }
+		@{ Name = "Putty"; ScriptBlock = { Install-Sw "Putty" "PuTTY.PuTTY" } }
         @{ Name = "pGina (Login alternativo)"; ScriptBlock = { Show-PGinaMenu } }
         @{ Name = "Supremo Control"; ScriptBlock = { Download-Install-Sw "Supremo Control" "https://www.nanosystems.it/public/download/Supremo.exe" "C:\Program Files (x86)\Supremo\Supremo.exe" } }
     )
