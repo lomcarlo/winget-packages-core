@@ -1,7 +1,7 @@
 # ============================================================================
 # 1. GESTIONE FINESTRA E PRIVILEGI ADMINISTRATOR
 # ============================================================================
-$version = "2.2"
+$version = "2.1"
 $WindowTitle = "*powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Maximized -File*"
 $ParentProcess = Get-Process | Where-Object { $_.MainWindowTitle -like $WindowTitle }
 if ($ParentProcess) { $ParentProcess | Stop-Process -Force }
@@ -610,16 +610,8 @@ function Show-QueueMenu {
         if ($Global:InstallQueue.Count -eq 0) {
             Write-Host "La coda è attualmente vuota.`n" -ForegroundColor Yellow
             Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
-            $rawChoice = Read-Host "Seleziona un'opzione"
-            $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
-
-            if ($choice -eq "0") {
-                Write-Host "Uscita in corso..." -ForegroundColor Red
-                return
-            } else {
-                Write-Host "Opzione non valida." -ForegroundColor Red
-                Start-Sleep -Seconds 1
-            }
+            Read-Host
+            return
         }
 
         $i = 1
