@@ -861,18 +861,87 @@ function Show-QueueMenu {
 # ============================================================================
 # 8. MENU DISINSTALLAZIONE SOFTWARE
 # ============================================================================
+function Get-InstalledWingetIds {
+    $installedIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    try {
+        $raw = winget list --accept-source-agreements
+        $lines = $raw -split "`r?`n" | Where-Object { $_.Trim() -ne "" }
+        $sepIndex = -1
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match "^-{10,}") {
+                $sepIndex = $i
+                break
+            }
+        }
+        if ($sepIndex -ge 1) {
+            $header = $lines[$sepIndex - 1]
+            $idPos = $header.IndexOf("Id")
+            $verPos = [Math]::Max($header.IndexOf("Versione"), $header.IndexOf("Version"))
+            if ($idPos -ge 0) {
+                for ($i = $sepIndex + 1; $i -lt $lines.Count; $i++) {
+                    $line = $lines[$i]
+                    if ($line.Length -gt $idPos) {
+                        $id = ""
+                        if ($verPos -gt $idPos) {
+                            $idLen = [Math]::Min($line.Length, $verPos) - $idPos
+                            if ($idLen -gt 0) { $id = $line.Substring($idPos, $idLen).Trim() }
+                        } else {
+                            $id = $line.Substring($idPos).Trim()
+                        }
+                        if ($id) {
+                            $null = $installedIds.Add($id)
+                        }
+                    }
+                }
+            }
+        }
+    } catch {
+        Write-Warning "Impossibile recuperare la lista dei pacchetti installati: $($_.Exception.Message)"
+    }
+    return $installedIds
+}
+
+function Get-InstalledApps {
+    Write-Host "Verifica delle applicazioni installate sul sistema in corso..." -ForegroundColor Yellow
+    $installedWingetIds = Get-InstalledWingetIds
+
+    $installed = @($Global:AppCatalog | Where-Object {
+        $app = $_
+        if ($app.UninstallType -eq "None") { return $false }
+        $targetId = if ($app.UninstallId) { $app.UninstallId } else { $app.Id }
+        if ($targetId -and $installedWingetIds.Contains($targetId)) { return $true }
+        if ($app.InstallPath -and (Test-ProgramPath $app.InstallPath)) { return $true }
+        if ($app.Name -like "*pGina*" -and ((Test-ProgramPath "C:\Program Files\pGina\pGina.Configuration.exe") -or (Test-ProgramPath "C:\Program Files\pGina.fork\pGina.Configuration.exe"))) { return $true }
+        return $false
+    })
+
+    return $installed
+}
+
 function Show-UninstallMenu {
     do {
         Clear-Host
         Write-Host (Show-CenteredBox -action "MENU DISINSTALLAZIONE SOFTWARE" -rows 3) -ForegroundColor Magenta
         Write-Host "`n"
 
-        $uninstallable = $Global:AppCatalog | Where-Object { $_.UninstallType -ne "None" }
-        $idx = 1
+        $uninstallable = @(Get-InstalledApps)
 
+        Clear-Host
+        Write-Host (Show-CenteredBox -action "MENU DISINSTALLAZIONE SOFTWARE ($($uninstallable.Count) installati)" -rows 3) -ForegroundColor Magenta
+        Write-Host "`n"
+
+        if ($uninstallable.Count -eq 0) {
+            Write-Host "Nessun software del catalogo risulta attualmente installato nel sistema.`n" -ForegroundColor Yellow
+            Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
+            Write-Host "`n"
+            $null = Read-Host "Premi Invio o 0 per tornare al menu principale"
+            return
+        }
+
+        $idx = 1
         foreach ($app in $uninstallable) {
             $desc = if ($app.Description) { " ($($app.Description))" } else { "" }
-            Write-Host "  [$idx] $($app.Name)$desc" -ForegroundColor Yellow
+            Write-Host "  [$idx] $($app.Name)$desc [$($app.Category)]" -ForegroundColor Yellow
             $idx++
         }
 
