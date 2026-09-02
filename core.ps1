@@ -610,7 +610,16 @@ function Show-QueueMenu {
         if ($Global:InstallQueue.Count -eq 0) {
             Write-Host "La coda è attualmente vuota.`n" -ForegroundColor Yellow
             Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
-            Read-Host
+            $rawChoice = Read-Host "Seleziona un'opzione"
+            $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
+
+            if ($choice -eq "0") {
+                Write-Host "Uscita in corso..." -ForegroundColor Red
+                exit
+            } else {
+                Write-Host "Opzione non valida." -ForegroundColor Red
+                Start-Sleep -Seconds 1
+            }
             return
         }
 
