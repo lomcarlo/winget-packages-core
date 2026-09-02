@@ -1,7 +1,7 @@
 # ============================================================================
 # 1. GESTIONE FINESTRA E PRIVILEGI ADMINISTRATOR
 # ============================================================================
-$version = "2.1"
+$version = "2.2"
 $WindowTitle = "*powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Maximized -File*"
 $ParentProcess = Get-Process | Where-Object { $_.MainWindowTitle -like $WindowTitle }
 if ($ParentProcess) { $ParentProcess | Stop-Process -Force }
@@ -615,12 +615,11 @@ function Show-QueueMenu {
 
             if ($choice -eq "0") {
                 Write-Host "Uscita in corso..." -ForegroundColor Red
-                exit
+                return
             } else {
                 Write-Host "Opzione non valida." -ForegroundColor Red
                 Start-Sleep -Seconds 1
             }
-            return
         }
 
         $i = 1
