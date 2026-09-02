@@ -121,7 +121,7 @@ $Global:InstallQueue = [System.Collections.Generic.List[PSCustomObject]]::new()
 # ============================================================================
 # 4. FUNZIONI DI ESECUZIONE (INSTALLAZIONE E DISINSTALLAZIONE)
 # ============================================================================
-function Download-Install-Sw {
+function Invoke-DownloadAndInstall {
     param(
         [string]$Name,
         [string]$Url,
@@ -179,7 +179,7 @@ function Invoke-AppInstall {
                 winget install -e --id $App.Id --source $App.Source --accept-package-agreements --accept-source-agreements --silent
             }
             "Download" {
-                Download-Install-Sw -Name $App.Name -Url $App.Url -InstallPath $App.InstallPath
+                Invoke-DownloadAndInstall -Name $App.Name -Url $App.Url -InstallPath $App.InstallPath
             }
             "Script" {
                 if ($App.InstallScript) {
@@ -484,7 +484,8 @@ function Show-MainMenu {
 
         $rawChoice = Read-Host "Seleziona un'opzione"
         $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
-
+        $catIndex = 0
+        
         if ($choice -eq "0") {
             Write-Host "Uscita in corso..." -ForegroundColor Red
             exit
@@ -722,10 +723,10 @@ function Show-PGinaMenu {
 
     switch ($decision) {
         0 {
-            Download-Install-Sw -Name "pGina 3.1.8.0" -Url "https://github.com/pgina/pgina/releases/download/v3.1.8.0/pGinaSetup-3.1.8.0.exe" -InstallPath "C:\Program Files\pGina\pGina.Configuration.exe"
+            Invoke-DownloadAndInstall -Name "pGina 3.1.8.0" -Url "https://github.com/pgina/pgina/releases/download/v3.1.8.0/pGinaSetup-3.1.8.0.exe" -InstallPath "C:\Program Files\pGina\pGina.Configuration.exe"
         }
         1 {
-            Download-Install-Sw -Name "pGina fork 3.9.9.12" -Url "https://github.com/MutonUfoAI/pgina/releases/download/3.9.9.12/pGinaSetup-3.9.9.12.exe" -InstallPath "C:\Program Files\pGina.fork\pGina.Configuration.exe"
+            Invoke-DownloadAndInstall -Name "pGina fork 3.9.9.12" -Url "https://github.com/MutonUfoAI/pgina/releases/download/3.9.9.12/pGinaSetup-3.9.9.12.exe" -InstallPath "C:\Program Files\pGina.fork\pGina.Configuration.exe"
         }
         2 { Write-Host "Operazione pGina saltata." -ForegroundColor Yellow }
         3 { exit }
