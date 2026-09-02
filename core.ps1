@@ -485,11 +485,13 @@ function Show-MainMenu {
 
         $rawChoice = Read-Host "Seleziona un'opzione"
         $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
-        $catIndex = 0
+        [int]$catIndex = 0
 
-        if ($choice -eq "0") {
+        if ($choice -eq "" -or [string]::IsNullOrWhiteSpace($choice)) {
+            continue
+        } elseif ($choice -eq "0") {
             Write-Host "Uscita in corso..." -ForegroundColor Red
-            exit
+            return
         } elseif ($choice -eq "Q" -or $choice -eq "q") {
             Show-QueueMenu
         } elseif ($choice -eq "U" -or $choice -eq "u") {
@@ -610,8 +612,8 @@ function Show-QueueMenu {
         if ($Global:InstallQueue.Count -eq 0) {
             Write-Host "La coda è attualmente vuota.`n" -ForegroundColor Yellow
             Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
-            Read-Host
-            exit
+            $null = Read-Host
+            return
         }
 
         $i = 1
