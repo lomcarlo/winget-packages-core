@@ -1,6 +1,7 @@
 # ============================================================================
 # 1. GESTIONE FINESTRA E PRIVILEGI ADMINISTRATOR
 # ============================================================================
+$version = "2.1"
 $WindowTitle = "*powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Maximized -File*"
 $ParentProcess = Get-Process | Where-Object { $_.MainWindowTitle -like $WindowTitle }
 if ($ParentProcess) { $ParentProcess | Stop-Process -Force }
@@ -462,7 +463,7 @@ $Global:AppCatalog = @(
 function Show-MainMenu {
     do {
         Clear-Host
-        $headerText = "MENU PRINCIPALE`r`nInstallazione Pacchetti Software Windows`r`nVersione 2.0"
+        $headerText = "MENU PRINCIPALE`r`nInstallazione Pacchetti Software Windows`r`nVersione $version"
         if ($Global:InstallQueue.Count -gt 0) {
             $headerText += "`r`n[ Elementi in Coda: $($Global:InstallQueue.Count) ]"
         }
@@ -485,7 +486,7 @@ function Show-MainMenu {
         $rawChoice = Read-Host "Seleziona un'opzione"
         $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
         $catIndex = 0
-        
+
         if ($choice -eq "0") {
             Write-Host "Uscita in corso..." -ForegroundColor Red
             exit
