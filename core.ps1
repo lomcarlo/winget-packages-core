@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 1. GESTIONE FINESTRA E PRIVILEGI ADMINISTRATOR
 # ============================================================================
 $version = "2.1"
@@ -89,6 +89,7 @@ $Global:Choices = [System.Management.Automation.Host.ChoiceDescription[]]@(
 function New-AppDefinition {
     param(
         [string]$Name,
+        [string]$Description = "",
         [string]$Category,
         [string]$Type = "Winget",             # Winget, Download, Script
         [string]$Id = "",                     # ID Winget
@@ -103,6 +104,7 @@ function New-AppDefinition {
 
     return [PSCustomObject]@{
         Name            = $Name
+        Description     = $Description
         Category        = $Category
         Type            = $Type
         Id              = $Id
@@ -252,13 +254,13 @@ function Invoke-AppUninstall {
 # ============================================================================
 $Global:AppCatalog = @(
     # CONFIGURAZIONE SISTEMA
-    (New-AppDefinition -Name "Disabilitazione OOBE" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+    (New-AppDefinition -Name "Disabilitazione OOBE" -Description "Disabilita schermata di prima configurazione privacy" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
         $RegistryPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\OOBE"
         if (-not (Test-ProgramPath $RegistryPath)) { New-Item -Path $RegistryPath -Force | Out-Null }
         Set-ItemProperty -Path $RegistryPath -Name "DisablePrivacyExperience" -Value 1 -Type DWORD -Force
         Write-Host "OOBE disabilitato." -ForegroundColor Green
     }),
-    (New-AppDefinition -Name "Eliminazione automatica vecchi account" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+    (New-AppDefinition -Name "Eliminazione automatica vecchi account" -Description "Pianifica pulizia periodica account inattivi" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
         Set-Location $Global:LocalScriptRoot
         $psPath = Join-Path (Get-Location).Path "manutenzioneAccount.ps1"
         $destinazione = "C:\Program Files\ManutenzioneAccount"
@@ -269,7 +271,7 @@ $Global:AppCatalog = @(
         schtasks.exe /Create /TN "PuliziaAccountInattivi" /TR $Command /SC MONTHLY /D 1 /ST 03:00 /RU "SYSTEM" /RL HIGHEST /F
         Write-Host "Task scheduler programmato." -ForegroundColor Green
     }),
-    (New-AppDefinition -Name "Impostazione immagine UniPV" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+    (New-AppDefinition -Name "Impostazione immagine UniPV" -Description "Sfondo desktop, schermata di blocco e loghi UniPV" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
         Set-Location $Global:LocalScriptRoot
         $bg_path = Join-Path (Get-Location).Path "grafica_unipv\unipv_bg.jpg"
         $logo_bmp = Join-Path (Get-Location).Path "grafica_unipv\unipv_logo.bmp"
@@ -300,7 +302,7 @@ $Global:AppCatalog = @(
         gpupdate /force
         Write-Host "Tema UniPV applicato." -ForegroundColor Green
     }),
-    (New-AppDefinition -Name "Aggiunta utente Ospite" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+    (New-AppDefinition -Name "Aggiunta utente Ospite" -Description "Crea account locale Ospite per visitatori" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
         $username = "Ospite"
         if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
             Write-Host "L'utente '$username' esiste già." -ForegroundColor Yellow
@@ -319,7 +321,7 @@ $Global:AppCatalog = @(
             }
         }
     }),
-    (New-AppDefinition -Name "Abilitazione account Administrator" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
+    (New-AppDefinition -Name "Abilitazione account Administrator" -Description "Abilita l'account amministratore integrato" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "None" -InstallScript {
         $adminUser = "Administrator"
         $adminAccount = Get-LocalUser -Name $adminUser -ErrorAction SilentlyContinue
         if ($adminAccount) {
@@ -331,10 +333,10 @@ $Global:AppCatalog = @(
             }
         }
     }),
-    (New-AppDefinition -Name "pGina (Login alternativo)" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "Script" -UninstallScript { Show-PGinaMenu } -InstallScript { Show-PGinaMenu }),
+    (New-AppDefinition -Name "pGina (Login alternativo)" -Description "Gestore autenticazione e login alternativo per Windows" -Category "CONFIGURAZIONE SISTEMA" -Type "Script" -UninstallType "Script" -UninstallScript { Show-PGinaMenu } -InstallScript { Show-PGinaMenu }),
 
     # SOFTWARE ESSENZIALI
-    (New-AppDefinition -Name "Winget AutoUpdate" -Category "SOFTWARE ESSENZIALI" -Type "Script" -UninstallType "Winget" -UninstallId "Romanitho.Winget-AutoUpdate" -InstallScript {
+    (New-AppDefinition -Name "Winget AutoUpdate" -Description "Aggiornamento automatico in background delle app winget" -Category "SOFTWARE ESSENZIALI" -Type "Script" -UninstallType "Winget" -UninstallId "Romanitho.Winget-AutoUpdate" -InstallScript {
         winget install -e --id Romanitho.Winget-AutoUpdate --source winget --accept-package-agreements --silent
         $wauPath = "$env:ProgramData\WAU"
         $exclusionFileSource = Join-Path $Global:LocalScriptRoot "excluded_apps.txt"
@@ -345,16 +347,16 @@ $Global:AppCatalog = @(
             Write-Host "File excluded_apps.txt configurato." -ForegroundColor Green
         }
     }),
-    (New-AppDefinition -Name "WAU Settings GUI" -Category "SOFTWARE ESSENZIALI" -Id "KnifMelti.WAU-Settings-GUI"),
-    (New-AppDefinition -Name "Google Drive" -Category "SOFTWARE ESSENZIALI" -Id "Google.GoogleDrive"),
-    (New-AppDefinition -Name "Google Chrome" -Category "SOFTWARE ESSENZIALI" -Id "Google.Chrome"),
-    (New-AppDefinition -Name "7zip" -Category "SOFTWARE ESSENZIALI" -Id "7zip.7zip"),
-    (New-AppDefinition -Name "Zoom Workplace" -Category "SOFTWARE ESSENZIALI" -Id "Zoom.Zoom"),
+    (New-AppDefinition -Name "WAU Settings GUI" -Description "Interfaccia grafica per configurare Winget AutoUpdate" -Category "SOFTWARE ESSENZIALI" -Id "KnifMelti.WAU-Settings-GUI"),
+    (New-AppDefinition -Name "Google Drive" -Description "Client di sincronizzazione cloud Google" -Category "SOFTWARE ESSENZIALI" -Id "Google.GoogleDrive"),
+    (New-AppDefinition -Name "Google Chrome" -Description "Browser web veloce e sicuro di Google" -Category "SOFTWARE ESSENZIALI" -Id "Google.Chrome"),
+    (New-AppDefinition -Name "7zip" -Description "Gestore di archivi compressi zip, 7z, rar" -Category "SOFTWARE ESSENZIALI" -Id "7zip.7zip"),
+    (New-AppDefinition -Name "Zoom Workplace" -Description "Piattaforma per videoconferenze e riunioni online" -Category "SOFTWARE ESSENZIALI" -Id "Zoom.Zoom"),
 
     # SOFTWARE OFFICE & COMUNICAZIONE
-    (New-AppDefinition -Name "Microsoft 365 Copilot" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "9WZDNCRD29V9"),
-    (New-AppDefinition -Name "Microsoft 365" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Microsoft.Office"),
-    (New-AppDefinition -Name "Microsoft Office 2016 Professional Plus" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Type "Script" -UninstallType "None" -InstallScript {
+    (New-AppDefinition -Name "Microsoft 365 Copilot" -Description "Assistente AI integrato Microsoft" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "9WZDNCRD29V9"),
+    (New-AppDefinition -Name "Microsoft 365" -Description "Suite di produttività Office (Word, Excel, PowerPoint, Outlook)" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Microsoft.Office"),
+    (New-AppDefinition -Name "Microsoft Office 2016 Professional Plus" -Description "Suite Office 2016 offline 64-bit in italiano" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Type "Script" -UninstallType "None" -InstallScript {
         $OfficeInstalled = Test-ProgramPath "C:\Program Files\Microsoft Office\Office16\WINWORD.EXE" -or Test-ProgramPath "C:\Program Files (x86)\Microsoft Office\Office16\WINWORD.EXE"
         if ($OfficeInstalled) {
             Write-Host "Office 2016 risulta già installato." -ForegroundColor Yellow
@@ -368,69 +370,69 @@ $Global:AppCatalog = @(
             }
         }
     }),
-    (New-AppDefinition -Name "Microsoft Teams" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "XP8BT8DW290MPQ"),
-    (New-AppDefinition -Name "Adobe Acrobat Reader" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Adobe.Acrobat.Reader.64-bit"),
-    (New-AppDefinition -Name "LibreOffice" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "TheDocumentFoundation.LibreOffice"),
-    (New-AppDefinition -Name "WhatsApp" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "9NKSQGP7F2NH"),
-    (New-AppDefinition -Name "PDFsam Basic" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "PDFsam.PDFsam"),
-    (New-AppDefinition -Name "Firma Digitale InfoCamiere" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Bit4id.Firma4ng.InfoCamiere"),
-    (New-AppDefinition -Name "Eset Security (Antivirus)" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "ESET.Nod32"),
+    (New-AppDefinition -Name "Microsoft Teams" -Description "Comunicazione e collaborazione aziendale/universitaria" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "XP8BT8DW290MPQ"),
+    (New-AppDefinition -Name "Adobe Acrobat Reader" -Description "Lettore e visualizzatore ufficiale file PDF" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Adobe.Acrobat.Reader.64-bit"),
+    (New-AppDefinition -Name "LibreOffice" -Description "Suite per ufficio open source alternativa a MS Office" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "TheDocumentFoundation.LibreOffice"),
+    (New-AppDefinition -Name "WhatsApp" -Description "Applicazione di messaggistica istantanea" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "9NKSQGP7F2NH"),
+    (New-AppDefinition -Name "PDFsam Basic" -Description "Strumento per dividere, unire e ruotare file PDF" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "PDFsam.PDFsam"),
+    (New-AppDefinition -Name "Firma Digitale InfoCamiere" -Description "Software Firma4NG per firma digitale e CNS" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Bit4id.Firma4ng.InfoCamiere"),
+    (New-AppDefinition -Name "Eset Security (Antivirus)" -Description "Protezione antivirus e sicurezza endpoint" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "ESET.Nod32"),
 
     # SOFTWARE UTILITÀ
-    (New-AppDefinition -Name "ShareX" -Category "SOFTWARE UTILITÀ" -Id "ShareX.ShareX"),
-    (New-AppDefinition -Name "Everything" -Category "SOFTWARE UTILITÀ" -Id "voidtools.Everything"),
-    (New-AppDefinition -Name "KeePassXC" -Category "SOFTWARE UTILITÀ" -Id "KeePassXCTeam.KeePassXC"),
-    (New-AppDefinition -Name "Notepad++" -Category "SOFTWARE UTILITÀ" -Id "Notepad++.Notepad++"),
-    (New-AppDefinition -Name "Mendeley Reference Manager" -Category "SOFTWARE UTILITÀ" -Id "Elsevier.MendeleyReferenceManager"),
-    (New-AppDefinition -Name "Advanced Renamer" -Category "SOFTWARE UTILITÀ" -Id "HulubuluSoftware.AdvancedRenamer"),
-    (New-AppDefinition -Name "AutoHotkey" -Category "SOFTWARE UTILITÀ" -Type "Download" -Url "https://www.autohotkey.com/download/ahk-v2.exe" -InstallPath "C:\Program Files\AutoHotkey\UX\AutoHotkeyUX.exe" -UninstallType "Winget" -UninstallId "AutoHotkey.AutoHotkey"),
-    (New-AppDefinition -Name "VirtualBox" -Category "SOFTWARE UTILITÀ" -Id "Oracle.VirtualBox"),
-    (New-AppDefinition -Name "WinSCP" -Category "SOFTWARE UTILITÀ" -Id "WinSCP.WinSCP"),
-    (New-AppDefinition -Name "Putty" -Category "SOFTWARE UTILITÀ" -Id "PuTTY.PuTTY"),
-    (New-AppDefinition -Name "Supremo Control" -Category "SOFTWARE UTILITÀ" -Type "Download" -Url "https://www.nanosystems.it/public/download/Supremo.exe" -InstallPath "C:\Program Files (x86)\Supremo\Supremo.exe" -UninstallType "None"),
+    (New-AppDefinition -Name "ShareX" -Description "Cattura schermo, registrazione video e condivisione" -Category "SOFTWARE UTILITÀ" -Id "ShareX.ShareX"),
+    (New-AppDefinition -Name "Everything" -Description "Motore di ricerca istantaneo per file e cartelle" -Category "SOFTWARE UTILITÀ" -Id "voidtools.Everything"),
+    (New-AppDefinition -Name "KeePassXC" -Description "Gestore di password sicuro e open source" -Category "SOFTWARE UTILITÀ" -Id "KeePassXCTeam.KeePassXC"),
+    (New-AppDefinition -Name "Notepad++" -Description "Editor di testo avanzato con evidenziazione sintassi" -Category "SOFTWARE UTILITÀ" -Id "Notepad++.Notepad++"),
+    (New-AppDefinition -Name "Mendeley Reference Manager" -Description "Gestore di riferimenti bibliografici e citazioni" -Category "SOFTWARE UTILITÀ" -Id "Elsevier.MendeleyReferenceManager"),
+    (New-AppDefinition -Name "Advanced Renamer" -Description "Rinomina massiva di file e cartelle" -Category "SOFTWARE UTILITÀ" -Id "HulubuluSoftware.AdvancedRenamer"),
+    (New-AppDefinition -Name "AutoHotkey" -Description "Automazione, macro e scorciatoie da tastiera personalizzate" -Category "SOFTWARE UTILITÀ" -Type "Download" -Url "https://www.autohotkey.com/download/ahk-v2.exe" -InstallPath "C:\Program Files\AutoHotkey\UX\AutoHotkeyUX.exe" -UninstallType "Winget" -UninstallId "AutoHotkey.AutoHotkey"),
+    (New-AppDefinition -Name "VirtualBox" -Description "Virtualizzazione per eseguire macchine virtuali" -Category "SOFTWARE UTILITÀ" -Id "Oracle.VirtualBox"),
+    (New-AppDefinition -Name "WinSCP" -Description "Client SFTP, FTP e SCP per trasferimento file" -Category "SOFTWARE UTILITÀ" -Id "WinSCP.WinSCP"),
+    (New-AppDefinition -Name "Putty" -Description "Client SSH e Telnet per connessioni remote" -Category "SOFTWARE UTILITÀ" -Id "PuTTY.PuTTY"),
+    (New-AppDefinition -Name "Supremo Control" -Description "Controllo remoto e supporto a distanza" -Category "SOFTWARE UTILITÀ" -Type "Download" -Url "https://www.nanosystems.it/public/download/Supremo.exe" -InstallPath "C:\Program Files (x86)\Supremo\Supremo.exe" -UninstallType "None"),
 
     # SOFTWARE STATISTICI
-    (New-AppDefinition -Name "JASP" -Category "SOFTWARE STATISTICI" -Id "UniversityOfAmsterdam.JASP"),
-    (New-AppDefinition -Name "R Project" -Category "SOFTWARE STATISTICI" -Id "RProject.R"),
-    (New-AppDefinition -Name "GPower" -Category "SOFTWARE STATISTICI" -Id "GPower.GPower"),
-    (New-AppDefinition -Name "RStudio" -Category "SOFTWARE STATISTICI" -Id "Posit.RStudio"),
-    (New-AppDefinition -Name "Orange" -Category "SOFTWARE STATISTICI" -Id "UniversityOfLjubljana.Orange"),
-    (New-AppDefinition -Name "Python" -Category "SOFTWARE STATISTICI" -Id "Python.Launcher"),
-    (New-AppDefinition -Name "Jupyter Notebook" -Category "SOFTWARE STATISTICI" -Id "ProjectJupyter.JupyterLab"),
+    (New-AppDefinition -Name "JASP" -Description "Analisi statistica bayesiana e classica user-friendly" -Category "SOFTWARE STATISTICI" -Id "UniversityOfAmsterdam.JASP"),
+    (New-AppDefinition -Name "R Project" -Description "Ambiente e linguaggio per calcolo statistico e grafici" -Category "SOFTWARE STATISTICI" -Id "RProject.R"),
+    (New-AppDefinition -Name "GPower" -Description "Calcolo della potenza statistica e dimensione campionaria" -Category "SOFTWARE STATISTICI" -Id "GPower.GPower"),
+    (New-AppDefinition -Name "RStudio" -Description "IDE completo per sviluppo e analisi dati in R" -Category "SOFTWARE STATISTICI" -Id "Posit.RStudio"),
+    (New-AppDefinition -Name "Orange" -Description "Data mining e machine learning visuale a blocchi" -Category "SOFTWARE STATISTICI" -Id "UniversityOfLjubljana.Orange"),
+    (New-AppDefinition -Name "Python" -Description "Interprete e ambiente di programmazione Python" -Category "SOFTWARE STATISTICI" -Id "Python.Launcher"),
+    (New-AppDefinition -Name "Jupyter Notebook" -Description "Ambiente interattivo web per Python e data science" -Category "SOFTWARE STATISTICI" -Id "ProjectJupyter.JupyterLab"),
 
     # MULTIMEDIA
-    (New-AppDefinition -Name "Audacity" -Category "MULTIMEDIA" -Id "Audacity.Audacity"),
-    (New-AppDefinition -Name "Avidemux" -Category "MULTIMEDIA" -Id "Avidemux.Avidemux"),
-    (New-AppDefinition -Name "DaVinci Resolve" -Category "MULTIMEDIA" -Type "Download" -Url "https://swr.cloud.blackmagicdesign.com/DaVinciResolve/v20.3.2/DaVinci_Resolve_Studio_20.3.2_Windows.zip" -InstallPath "C:\Program Files\Blackmagic Design\DaVinci Resolve\DaVinci Resolve.exe" -UninstallType "None"),
-    (New-AppDefinition -Name "Gimp" -Category "MULTIMEDIA" -Id "GIMP.GIMP.3"),
-    (New-AppDefinition -Name "K-Lite Codec Pack Standard" -Category "MULTIMEDIA" -Id "CodecGuide.K-LiteCodecPack.Standard"),
-    (New-AppDefinition -Name "OBS Studio" -Category "MULTIMEDIA" -Id "OBSProject.OBSStudio"),
-    (New-AppDefinition -Name "VLC Player" -Category "MULTIMEDIA" -Id "VLC.VLC"),
-    (New-AppDefinition -Name "Shutter Encoder" -Category "MULTIMEDIA" -Id "PaulPacifico.ShutterEncoder"),
-    (New-AppDefinition -Name "Subtitle Edit" -Category "MULTIMEDIA" -Id "Nikse.SubtitleEdit"),
+    (New-AppDefinition -Name "Audacity" -Description "Editor e registratore audio multitraccia open source" -Category "MULTIMEDIA" -Id "Audacity.Audacity"),
+    (New-AppDefinition -Name "Avidemux" -Description "Editor video semplice per taglio, filtraggio e codifica" -Category "MULTIMEDIA" -Id "Avidemux.Avidemux"),
+    (New-AppDefinition -Name "DaVinci Resolve" -Description "Montaggio video professionale, effetti e color grading" -Category "MULTIMEDIA" -Type "Download" -Url "https://swr.cloud.blackmagicdesign.com/DaVinciResolve/v20.3.2/DaVinci_Resolve_Studio_20.3.2_Windows.zip" -InstallPath "C:\Program Files\Blackmagic Design\DaVinci Resolve\DaVinci Resolve.exe" -UninstallType "None"),
+    (New-AppDefinition -Name "Gimp" -Description "Editor grafico e fotoritocco open source" -Category "MULTIMEDIA" -Id "GIMP.GIMP.3"),
+    (New-AppDefinition -Name "K-Lite Codec Pack Standard" -Description "Raccolta di codec per riproduzione audio/video" -Category "MULTIMEDIA" -Id "CodecGuide.K-LiteCodecPack.Standard"),
+    (New-AppDefinition -Name "OBS Studio" -Description "Registrazione schermo e streaming video in tempo reale" -Category "MULTIMEDIA" -Id "OBSProject.OBSStudio"),
+    (New-AppDefinition -Name "VLC Player" -Description "Lettore multimediale universale per tutti i formati" -Category "MULTIMEDIA" -Id "VLC.VLC"),
+    (New-AppDefinition -Name "Shutter Encoder" -Description "Convertitore ed elaboratore video professionale" -Category "MULTIMEDIA" -Id "PaulPacifico.ShutterEncoder"),
+    (New-AppDefinition -Name "Subtitle Edit" -Description "Editor e sincronizzatore avanzato di sottotitoli" -Category "MULTIMEDIA" -Id "Nikse.SubtitleEdit"),
 
     # SOFTWARE 3D
-    (New-AppDefinition -Name "Fusion 360" -Category "SOFTWARE 3D" -Type "Download" -Url "https://dl.appstreaming.autodesk.com/production/installers/Fusion%20Client%20Downloader.exe" -InstallPath "$env:LOCALAPPDATA\Autodesk\webdeploy\production\Fusion360.exe" -UninstallType "None"),
-    (New-AppDefinition -Name "PrusaSlicer" -Category "SOFTWARE 3D" -Id "Prusa3D.PrusaSlicer"),
-    (New-AppDefinition -Name "OpenSCAD" -Category "SOFTWARE 3D" -Id "OpenSCAD.OpenSCAD"),
-    (New-AppDefinition -Name "Shapr3D" -Category "SOFTWARE 3D" -Id "Shapr3D.Shapr3D"),
-    (New-AppDefinition -Name "Blender" -Category "SOFTWARE 3D" -Id "Blender.Blender"),
-    (New-AppDefinition -Name "Meshmixer" -Category "SOFTWARE 3D" -Id "Autodesk.Meshmixer"),
-    (New-AppDefinition -Name "Ultimaker Cura" -Category "SOFTWARE 3D" -Id "Ultimaker.Cura"),
+    (New-AppDefinition -Name "Fusion 360" -Description "Software CAD/CAM/CAE 3D per progettazione e manifattura" -Category "SOFTWARE 3D" -Type "Download" -Url "https://dl.appstreaming.autodesk.com/production/installers/Fusion%20Client%20Downloader.exe" -InstallPath "$env:LOCALAPPDATA\Autodesk\webdeploy\production\Fusion360.exe" -UninstallType "None"),
+    (New-AppDefinition -Name "PrusaSlicer" -Description "Slicer avanzato per la stampa 3D (FDM e SLA)" -Category "SOFTWARE 3D" -Id "Prusa3D.PrusaSlicer"),
+    (New-AppDefinition -Name "OpenSCAD" -Description "Modellazione 3D parametrica basata su script di codice" -Category "SOFTWARE 3D" -Id "OpenSCAD.OpenSCAD"),
+    (New-AppDefinition -Name "Shapr3D" -Description "Modellazione CAD 3D intuitiva e diretta" -Category "SOFTWARE 3D" -Id "Shapr3D.Shapr3D"),
+    (New-AppDefinition -Name "Blender" -Description "Suite completa per modellazione 3D, animazione e rendering" -Category "SOFTWARE 3D" -Id "Blender.Blender"),
+    (New-AppDefinition -Name "Meshmixer" -Description "Strumento per elaborazione, pulizia e scultura di mesh 3D" -Category "SOFTWARE 3D" -Id "Autodesk.Meshmixer"),
+    (New-AppDefinition -Name "Ultimaker Cura" -Description "Software di slicing per stampanti 3D Ultimaker e compatibili" -Category "SOFTWARE 3D" -Id "Ultimaker.Cura"),
 
     # SOFTWARE PROGRAMMAZIONE
-    (New-AppDefinition -Name "draw.io" -Category "SOFTWARE PROGRAMMAZIONE" -Id "jgraph.drawio"),
-    (New-AppDefinition -Name "Visual Studio Code" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Microsoft.VisualStudioCode"),
-    (New-AppDefinition -Name "Docker Desktop" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Docker.DockerDesktop"),
-    (New-AppDefinition -Name "GitHub Desktop" -Category "SOFTWARE PROGRAMMAZIONE" -Id "GitHub.GitHubDesktop"),
-    (New-AppDefinition -Name "Node.js" -Category "SOFTWARE PROGRAMMAZIONE" -Id "OpenJSFoundation.NodeJS.LTS"),
-    (New-AppDefinition -Name "FileZilla" -Category "SOFTWARE PROGRAMMAZIONE" -Id "FileZilla.FileZilla.Client"),
-    (New-AppDefinition -Name "Postman" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Postman.Postman"),
-    (New-AppDefinition -Name "OpenAI Codex" -Category "SOFTWARE PROGRAMMAZIONE" -Id "OpenAI.Codex"),
-    (New-AppDefinition -Name "XAMPP" -Category "SOFTWARE PROGRAMMAZIONE" -Type "Download" -Url "https://www.apachefriends.org/xampp-files/8.2.4/xampp-windows-x64-8.2.4-0-VS16-installer.exe" -InstallPath "C:\xampp\xampp-control.exe" -UninstallType "None"),
+    (New-AppDefinition -Name "draw.io" -Description "Strumento per creazione diagrammi, flussi e schemi" -Category "SOFTWARE PROGRAMMAZIONE" -Id "jgraph.drawio"),
+    (New-AppDefinition -Name "Visual Studio Code" -Description "Editor di codice leggero ed estensibile di Microsoft" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Microsoft.VisualStudioCode"),
+    (New-AppDefinition -Name "Docker Desktop" -Description "Ambiente per creare ed eseguire container Docker" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Docker.DockerDesktop"),
+    (New-AppDefinition -Name "GitHub Desktop" -Description "Interfaccia grafica intuitiva per Git e GitHub" -Category "SOFTWARE PROGRAMMAZIONE" -Id "GitHub.GitHubDesktop"),
+    (New-AppDefinition -Name "Node.js" -Description "Runtime JavaScript lato server (versione LTS)" -Category "SOFTWARE PROGRAMMAZIONE" -Id "OpenJSFoundation.NodeJS.LTS"),
+    (New-AppDefinition -Name "FileZilla" -Description "Client FTP/FTPS/SFTP veloce e affidabile" -Category "SOFTWARE PROGRAMMAZIONE" -Id "FileZilla.FileZilla.Client"),
+    (New-AppDefinition -Name "Postman" -Description "Piattaforma per sviluppo e test di API REST" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Postman.Postman"),
+    (New-AppDefinition -Name "OpenAI Codex" -Description "Strumenti di integrazione AI per sviluppatori" -Category "SOFTWARE PROGRAMMAZIONE" -Id "OpenAI.Codex"),
+    (New-AppDefinition -Name "XAMPP" -Description "Stack locale con Apache, MariaDB/MySQL, PHP e Perl" -Category "SOFTWARE PROGRAMMAZIONE" -Type "Download" -Url "https://www.apachefriends.org/xampp-files/8.2.4/xampp-windows-x64-8.2.4-0-VS16-installer.exe" -InstallPath "C:\xampp\xampp-control.exe" -UninstallType "None"),
 
     # STAMPANTI
-    (New-AppDefinition -Name "Stampante Canon iR C3226" -Category "STAMPANTI" -Type "Script" -UninstallType "None" -InstallScript {
+    (New-AppDefinition -Name "Stampante Canon iR C3226" -Description "Driver Canon Generic Plus PCL6 (Scienze Motorie)" -Category "STAMPANTI" -Type "Script" -UninstallType "None" -InstallScript {
         $PortName = "Canon iR C3226 Scienze motorie"
         $DriverPath = "$Global:LocalScriptRoot\Canon_IR_C3226_PCL6_Driver_V330_32_64_00\x64\Driver\CNP60MA64.INF"
         $DriverModel = "Canon Generic Plus PCL6"
@@ -443,7 +445,7 @@ $Global:AppCatalog = @(
             Write-Host "Stampante Canon installata." -ForegroundColor Green
         }
     }),
-    (New-AppDefinition -Name "Stampante HP LaserJet E72425" -Category "STAMPANTI" -Type "Script" -UninstallType "None" -InstallScript {
+    (New-AppDefinition -Name "Stampante HP LaserJet E72425" -Description "Driver HP LaserJet MFP E72425 (Biostatistica)" -Category "STAMPANTI" -Type "Script" -UninstallType "None" -InstallScript {
         $PortName = "HP LaserJet MFP E72425 [44B668] Biostatistica"
         $DriverPath = "$Global:LocalScriptRoot\LJE72425-E72430\hponef2a4_x64.inf"
         $DriverModel = "HP LaserJet MFP E72425 E72430 PCL-6 (V4)"
@@ -478,12 +480,13 @@ function Show-MainMenu {
             $index++
         }
 
-        Write-Host "`n  [Q] Gestione / Esecuzione Coda ($($Global:InstallQueue.Count) elementi)" -ForegroundColor Green
+        Write-Host "`n  [S] Cerca software / programma" -ForegroundColor Cyan
+        Write-Host "  [Q] Gestione / Esecuzione Coda ($($Global:InstallQueue.Count) elementi)" -ForegroundColor Green
         Write-Host "  [U] Disinstallazione Software" -ForegroundColor Magenta
         Write-Host "  [0] Esci dallo script" -ForegroundColor Red
         Write-Host "`n"
 
-        $rawChoice = Read-Host "Seleziona un'opzione"
+        $rawChoice = Read-Host "Seleziona un'opzione o scrivi il nome di un programma"
         $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
         [int]$catIndex = 0
 
@@ -492,6 +495,8 @@ function Show-MainMenu {
         } elseif ($choice -eq "0") {
             Write-Host "Uscita in corso..." -ForegroundColor Red
             return
+        } elseif ($choice -eq "S" -or $choice -eq "s") {
+            Show-SearchMenu
         } elseif ($choice -eq "Q" -or $choice -eq "q") {
             Show-QueueMenu
         } elseif ($choice -eq "U" -or $choice -eq "u") {
@@ -505,7 +510,127 @@ function Show-MainMenu {
                 Start-Sleep -Seconds 1
             }
         } else {
-            Write-Host "Opzione non valida." -ForegroundColor Red
+            # Se viene digitato un testo, avvia direttamente la ricerca
+            Show-SearchMenu -InitialQuery $choice
+        }
+    } while ($true)
+}
+
+function Show-SearchMenu {
+    param([string]$InitialQuery = "")
+
+    $query = $InitialQuery
+    if ([string]::IsNullOrWhiteSpace($query)) {
+        Clear-Host
+        Write-Host (Show-CenteredBox -action "RICERCA SOFTWARE" -rows 3) -ForegroundColor Cyan
+        Write-Host "`n"
+        $rawQuery = Read-Host "Inserisci il nome o la descrizione da cercare (o 0 per tornare al menu)"
+        $query = if ($rawQuery) { $rawQuery.Trim() } else { "" }
+    }
+
+    if ($query -eq "0" -or [string]::IsNullOrWhiteSpace($query)) {
+        return
+    }
+
+    do {
+        Clear-Host
+        $results = @($Global:AppCatalog | Where-Object { 
+            $_.Name -like "*$query*" -or 
+            $_.Description -like "*$query*" -or 
+            $_.Category -like "*$query*" -or 
+            $_.Id -like "*$query*" 
+        })
+
+        Write-Host (Show-CenteredBox -action "RISULTATI RICERCA PER: `"$query`" ($($results.Count) trovati)" -rows 3) -ForegroundColor Cyan
+        Write-Host "`n"
+
+        if ($results.Count -eq 0) {
+            Write-Host "Nessun software trovato corrispondente a `"$query`".`n" -ForegroundColor Yellow
+            Write-Host "  [N] Nuova ricerca" -ForegroundColor Cyan
+            Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
+            Write-Host "`n"
+            $rawChoice = Read-Host "Seleziona un'opzione"
+            $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
+            if ($choice -eq "N" -or $choice -eq "n") {
+                $rawQuery = Read-Host "Inserisci il nuovo termine da cercare"
+                $query = if ($rawQuery) { $rawQuery.Trim() } else { "" }
+                if ($query -eq "0" -or [string]::IsNullOrWhiteSpace($query)) { return }
+                continue
+            } else {
+                return
+            }
+        }
+
+        $idx = 1
+        foreach ($item in $results) {
+            $inQueue = if ($Global:InstallQueue.Contains($item)) { " [in Coda]" } else { "" }
+            $desc = if ($item.Description) { " ($($item.Description))" } else { "" }
+            Write-Host "  [$idx] $($item.Name)$desc [$($item.Category)]$inQueue" -ForegroundColor Green
+            $idx++
+        }
+
+        Write-Host "`n  [N] Nuova ricerca" -ForegroundColor Cyan
+        Write-Host "  [A] Aggiungi TUTTI i risultati alla coda" -ForegroundColor Yellow
+        Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
+        Write-Host "`n"
+
+        $rawChoice = Read-Host "Seleziona uno o piu numeri (es. 1, 2) oppure 0 per tornare indietro"
+        $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
+
+        if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) {
+            return
+        }
+
+        if ($choice -eq "N" -or $choice -eq "n") {
+            $rawQuery = Read-Host "Inserisci il nuovo termine da cercare"
+            $query = if ($rawQuery) { $rawQuery.Trim() } else { "" }
+            if ($query -eq "0" -or [string]::IsNullOrWhiteSpace($query)) { return }
+            continue
+        }
+        elseif ($choice -eq "A" -or $choice -eq "a") {
+            foreach ($item in $results) {
+                if (-not $Global:InstallQueue.Contains($item)) { $Global:InstallQueue.Add($item) }
+            }
+            Write-Host "`nAggiunti tutti i risultati alla coda!" -ForegroundColor Green
+            Start-Sleep -Seconds 1
+        }
+        else {
+            $indices = $choice.Split(',').Trim() | ForEach-Object {
+                $n = 0
+                if ([int]::TryParse($_, [ref]$n)) { $n - 1 } else { -1 }
+            }
+
+            foreach ($i in $indices) {
+                if ($i -ge 0 -and $i -lt $results.Count) {
+                    $selectedApp = $results[$i]
+                    Write-Host "`nSelezionato: $($selectedApp.Name)" -ForegroundColor Cyan
+                    Write-Host "1. Installa subito (con conferma)"
+                    Write-Host "2. Installa subito (senza conferma)"
+                    Write-Host "3. Aggiungi alla coda di installazione"
+                    Write-Host "0. Annulla e torna indietro"
+                    
+                    $actRaw = Read-Host "Scegli azione (Default: 1)"
+                    $act = if ($actRaw) { $actRaw.Trim() } else { "1" }
+
+                    switch ($act) {
+                        "0" { 
+                            Write-Host "Operazione annullata." -ForegroundColor Yellow 
+                        }
+                        "2" { 
+                            Invoke-AppInstall -App $selectedApp -Ask $false 
+                        }
+                        "3" { 
+                            if (-not $Global:InstallQueue.Contains($selectedApp)) {
+                                $Global:InstallQueue.Add($selectedApp)
+                                Write-Host "Aggiunto alla coda." -ForegroundColor Green
+                            }
+                        }
+                        default { 
+                            Invoke-AppInstall -App $selectedApp -Ask $true 
+                        }
+                    }
+                }
+            }
             Start-Sleep -Seconds 1
         }
     } while ($true)
@@ -524,7 +649,8 @@ function Show-SubMenu {
 
         foreach ($item in $items) {
             $inQueue = if ($Global:InstallQueue.Contains($item)) { " [in Coda]" } else { "" }
-            Write-Host "  [$idx] $($item.Name)$inQueue" -ForegroundColor Green
+            $desc = if ($item.Description) { " ($($item.Description))" } else { "" }
+            Write-Host "  [$idx] $($item.Name)$desc$inQueue" -ForegroundColor Green
             $idx++
         }
 
@@ -618,7 +744,8 @@ function Show-QueueMenu {
 
         $i = 1
         foreach ($app in $Global:InstallQueue) {
-            Write-Host "  [$i] $($app.Name) [$($app.Category)]" -ForegroundColor Green
+            $desc = if ($app.Description) { " ($($app.Description))" } else { "" }
+            Write-Host "  [$i] $($app.Name)$desc [$($app.Category)]" -ForegroundColor Green
             $i++
         }
 
@@ -683,7 +810,8 @@ function Show-UninstallMenu {
         $idx = 1
 
         foreach ($app in $uninstallable) {
-            Write-Host "  [$idx] $($app.Name)" -ForegroundColor Yellow
+            $desc = if ($app.Description) { " ($($app.Description))" } else { "" }
+            Write-Host "  [$idx] $($app.Name)$desc" -ForegroundColor Yellow
             $idx++
         }
 
