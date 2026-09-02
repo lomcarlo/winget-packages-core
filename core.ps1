@@ -611,7 +611,7 @@ function Show-QueueMenu {
             Write-Host "La coda è attualmente vuota.`n" -ForegroundColor Yellow
             Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
             Read-Host
-            return
+            exit
         }
 
         $i = 1
