@@ -480,13 +480,13 @@ function Show-MainMenu {
             $index++
         }
 
-        Write-Host "`n  [S] Cerca software / programma" -ForegroundColor Cyan
+        Write-Host "`n  [S] Cerca software sul repository Winget" -ForegroundColor Cyan
         Write-Host "  [Q] Gestione / Esecuzione Coda ($($Global:InstallQueue.Count) elementi)" -ForegroundColor Green
         Write-Host "  [U] Disinstallazione Software" -ForegroundColor Magenta
         Write-Host "  [0] Esci dallo script" -ForegroundColor Red
         Write-Host "`n"
 
-        $rawChoice = Read-Host "Seleziona un'opzione o scrivi il nome di un programma"
+        $rawChoice = Read-Host "Seleziona un'opzione o scrivi il nome di un programma da cercare su Winget"
         $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
         [int]$catIndex = 0
 
@@ -516,15 +516,81 @@ function Show-MainMenu {
     } while ($true)
 }
 
+function Invoke-WingetSearch {
+    param([string]$Query)
+
+    $results = @()
+    try {
+        $raw = winget search "$Query" --accept-source-agreements
+        $lines = $raw -split "`r?`n" | Where-Object { $_.Trim() -ne "" }
+        $sepIndex = -1
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match "^-{10,}") {
+                $sepIndex = $i
+                break
+            }
+        }
+
+        if ($sepIndex -ge 1) {
+            $header = $lines[$sepIndex - 1]
+            $idPos = $header.IndexOf("Id")
+            $verPos = [Math]::Max($header.IndexOf("Versione"), $header.IndexOf("Version"))
+            $matchPos = [Math]::Max($header.IndexOf("Corrispondenza"), $header.IndexOf("Match"))
+            $srcPos = [Math]::Max($header.IndexOf("Origine"), $header.IndexOf("Source"))
+
+            for ($i = $sepIndex + 1; $i -lt $lines.Count; $i++) {
+                $line = $lines[$i]
+                if ($idPos -ge 0 -and $line.Length -gt $idPos) {
+                    $name = $line.Substring(0, $idPos).Trim()
+                    $id = ""
+                    $version = ""
+                    $source = "winget"
+
+                    if ($verPos -gt $idPos) {
+                        $idLen = [Math]::Min($line.Length, $verPos) - $idPos
+                        if ($idLen -gt 0) { $id = $line.Substring($idPos, $idLen).Trim() }
+                    }
+
+                    $nextAfterVer = if ($matchPos -gt $verPos) { $matchPos } elseif ($srcPos -gt $verPos) { $srcPos } else { -1 }
+                    if ($verPos -ge 0 -and $line.Length -gt $verPos) {
+                        if ($nextAfterVer -gt $verPos) {
+                            $verLen = [Math]::Min($line.Length, $nextAfterVer) - $verPos
+                            if ($verLen -gt 0) { $version = $line.Substring($verPos, $verLen).Trim() }
+                        } else {
+                            $version = $line.Substring($verPos).Trim()
+                        }
+                    }
+
+                    if ($srcPos -ge 0 -and $line.Length -gt $srcPos) {
+                        $source = $line.Substring($srcPos).Trim()
+                    }
+
+                    if ($id) {
+                        $results += [PSCustomObject]@{
+                            Name    = $name
+                            Id      = $id
+                            Version = $version
+                            Source  = if ($source) { $source } else { "winget" }
+                        }
+                    }
+                }
+            }
+        }
+    } catch {
+        Write-Warning "Errore durante l'esecuzione di winget search: $($_.Exception.Message)"
+    }
+    return $results
+}
+
 function Show-SearchMenu {
     param([string]$InitialQuery = "")
 
     $query = $InitialQuery
     if ([string]::IsNullOrWhiteSpace($query)) {
         Clear-Host
-        Write-Host (Show-CenteredBox -action "RICERCA SOFTWARE" -rows 3) -ForegroundColor Cyan
+        Write-Host (Show-CenteredBox -action "RICERCA SOFTWARE ONLINE (WINGET REPOSITORY)" -rows 3) -ForegroundColor Cyan
         Write-Host "`n"
-        $rawQuery = Read-Host "Inserisci il nome o la descrizione da cercare (o 0 per tornare al menu)"
+        $rawQuery = Read-Host "Inserisci il nome del programma da cercare su Winget (o 0 per tornare al menu)"
         $query = if ($rawQuery) { $rawQuery.Trim() } else { "" }
     }
 
@@ -534,25 +600,24 @@ function Show-SearchMenu {
 
     do {
         Clear-Host
-        $results = @($Global:AppCatalog | Where-Object { 
-            $_.Name -like "*$query*" -or 
-            $_.Description -like "*$query*" -or 
-            $_.Category -like "*$query*" -or 
-            $_.Id -like "*$query*" 
-        })
+        Write-Host (Show-CenteredBox -action "RICERCA WINGET: `"$query`"" -rows 3) -ForegroundColor Cyan
+        Write-Host "`nRicerca in corso sul repository Winget... Attendere..." -ForegroundColor Yellow
 
-        Write-Host (Show-CenteredBox -action "RISULTATI RICERCA PER: `"$query`" ($($results.Count) trovati)" -rows 3) -ForegroundColor Cyan
+        $results = @(Invoke-WingetSearch -Query $query)
+
+        Clear-Host
+        Write-Host (Show-CenteredBox -action "RISULTATI WINGET PER: `"$query`" ($($results.Count) trovati)" -rows 3) -ForegroundColor Cyan
         Write-Host "`n"
 
         if ($results.Count -eq 0) {
-            Write-Host "Nessun software trovato corrispondente a `"$query`".`n" -ForegroundColor Yellow
+            Write-Host "Nessun pacchetto trovato su Winget per `"$query`".`n" -ForegroundColor Yellow
             Write-Host "  [N] Nuova ricerca" -ForegroundColor Cyan
             Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
             Write-Host "`n"
             $rawChoice = Read-Host "Seleziona un'opzione"
             $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
             if ($choice -eq "N" -or $choice -eq "n") {
-                $rawQuery = Read-Host "Inserisci il nuovo termine da cercare"
+                $rawQuery = Read-Host "Inserisci il nuovo termine da cercare su Winget"
                 $query = if ($rawQuery) { $rawQuery.Trim() } else { "" }
                 if ($query -eq "0" -or [string]::IsNullOrWhiteSpace($query)) { return }
                 continue
@@ -563,18 +628,17 @@ function Show-SearchMenu {
 
         $idx = 1
         foreach ($item in $results) {
-            $inQueue = if ($Global:InstallQueue.Contains($item)) { " [in Coda]" } else { "" }
-            $desc = if ($item.Description) { " ($($item.Description))" } else { "" }
-            Write-Host "  [$idx] $($item.Name)$desc [$($item.Category)]$inQueue" -ForegroundColor Green
+            $inQueue = if ($Global:InstallQueue | Where-Object { $_.Id -eq $item.Id }) { " [in Coda]" } else { "" }
+            $verText = if ($item.Version) { " [v$($item.Version)]" } else { "" }
+            Write-Host "  [$idx] $($item.Name) (ID: $($item.Id))$verText$inQueue" -ForegroundColor Green
             $idx++
         }
 
         Write-Host "`n  [N] Nuova ricerca" -ForegroundColor Cyan
-        Write-Host "  [A] Aggiungi TUTTI i risultati alla coda" -ForegroundColor Yellow
         Write-Host "  [0] Torna al menu principale" -ForegroundColor Red
         Write-Host "`n"
 
-        $rawChoice = Read-Host "Seleziona uno o piu numeri (es. 1, 2) oppure 0 per tornare indietro"
+        $rawChoice = Read-Host "Seleziona il numero del programma da installare (es. 1) oppure 0 per tornare indietro"
         $choice = if ($rawChoice) { $rawChoice.Trim() } else { "" }
 
         if ($choice -eq "0" -or [string]::IsNullOrWhiteSpace($choice)) {
@@ -582,17 +646,10 @@ function Show-SearchMenu {
         }
 
         if ($choice -eq "N" -or $choice -eq "n") {
-            $rawQuery = Read-Host "Inserisci il nuovo termine da cercare"
+            $rawQuery = Read-Host "Inserisci il nuovo termine da cercare su Winget"
             $query = if ($rawQuery) { $rawQuery.Trim() } else { "" }
             if ($query -eq "0" -or [string]::IsNullOrWhiteSpace($query)) { return }
             continue
-        }
-        elseif ($choice -eq "A" -or $choice -eq "a") {
-            foreach ($item in $results) {
-                if (-not $Global:InstallQueue.Contains($item)) { $Global:InstallQueue.Add($item) }
-            }
-            Write-Host "`nAggiunti tutti i risultati alla coda!" -ForegroundColor Green
-            Start-Sleep -Seconds 1
         }
         else {
             $indices = $choice.Split(',').Trim() | ForEach-Object {
@@ -602,8 +659,10 @@ function Show-SearchMenu {
 
             foreach ($i in $indices) {
                 if ($i -ge 0 -and $i -lt $results.Count) {
-                    $selectedApp = $results[$i]
-                    Write-Host "`nSelezionato: $($selectedApp.Name)" -ForegroundColor Cyan
+                    $selectedPkg = $results[$i]
+                    $appDef = New-AppDefinition -Name $selectedPkg.Name -Description "ID: $($selectedPkg.Id)" -Category "WINGET ONLINE" -Type "Winget" -Id $selectedPkg.Id -Source $selectedPkg.Source
+
+                    Write-Host "`nSelezionato: $($selectedPkg.Name) (ID: $($selectedPkg.Id))" -ForegroundColor Cyan
                     Write-Host "1. Installa subito (con conferma)"
                     Write-Host "2. Installa subito (senza conferma)"
                     Write-Host "3. Aggiungi alla coda di installazione"
@@ -617,16 +676,18 @@ function Show-SearchMenu {
                             Write-Host "Operazione annullata." -ForegroundColor Yellow 
                         }
                         "2" { 
-                            Invoke-AppInstall -App $selectedApp -Ask $false 
+                            Invoke-AppInstall -App $appDef -Ask $false 
                         }
                         "3" { 
-                            if (-not $Global:InstallQueue.Contains($selectedApp)) {
-                                $Global:InstallQueue.Add($selectedApp)
-                                Write-Host "Aggiunto alla coda." -ForegroundColor Green
+                            if (-not ($Global:InstallQueue | Where-Object { $_.Id -eq $appDef.Id })) {
+                                $Global:InstallQueue.Add($appDef)
+                                Write-Host "Aggiunto alla coda: $($appDef.Name)" -ForegroundColor Green
+                            } else {
+                                Write-Host "L'elemento è già presente nella coda." -ForegroundColor Yellow
                             }
                         }
                         default { 
-                            Invoke-AppInstall -App $selectedApp -Ask $true 
+                            Invoke-AppInstall -App $appDef -Ask $true 
                         }
                     }
                 }
