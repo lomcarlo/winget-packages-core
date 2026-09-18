@@ -356,12 +356,12 @@ $Global:AppCatalog = @(
     # SOFTWARE OFFICE & COMUNICAZIONE
     (New-AppDefinition -Name "Microsoft 365 Copilot" -Description "Assistente AI integrato Microsoft" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "9WZDNCRD29V9"),
     (New-AppDefinition -Name "Microsoft 365" -Description "Suite di produttività Office (Word, Excel, PowerPoint, Outlook)" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Id "Microsoft.Office"),
-    (New-AppDefinition -Name "Microsoft Office 2016 Professional Plus" -Description "Suite Office 2016 offline 64-bit in italiano" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Type "Script" -UninstallType "None" -InstallScript {
+    (New-AppDefinition -Name "Microsoft Office 2019 Professional Plus" -Description "Suite Office 2019 offline 64-bit in italiano" -Category "SOFTWARE OFFICE & COMUNICAZIONE" -Type "Script" -UninstallType "None" -InstallScript {
         $OfficeInstalled = Test-ProgramPath "C:\Program Files\Microsoft Office\Office16\WINWORD.EXE" -or Test-ProgramPath "C:\Program Files (x86)\Microsoft Office\Office16\WINWORD.EXE"
         if ($OfficeInstalled) {
-            Write-Host "Office 2016 risulta già installato." -ForegroundColor Yellow
+            Write-Host "Office 2019 risulta già installato." -ForegroundColor Yellow
         } else {
-            $OfficePath = "$Global:LocalScriptRoot\Office Professional Plus 2016 64bit Ita\setup.exe"
+            $OfficePath = "$Global:LocalScriptRoot\Office Professional Plus 2019 64bit Ita\setup.exe"
             if (Test-ProgramPath $OfficePath) {
                 Start-Process $OfficePath -Wait
                 Write-Host "Installazione completata." -ForegroundColor Green
