@@ -429,6 +429,7 @@ $Global:AppCatalog = @(
     (New-AppDefinition -Name "FileZilla" -Description "Client FTP/FTPS/SFTP veloce e affidabile" -Category "SOFTWARE PROGRAMMAZIONE" -Id "FileZilla.FileZilla.Client"),
     (New-AppDefinition -Name "Postman" -Description "Piattaforma per sviluppo e test di API REST" -Category "SOFTWARE PROGRAMMAZIONE" -Id "Postman.Postman"),
     (New-AppDefinition -Name "OpenAI Codex" -Description "Strumenti di integrazione AI per sviluppatori" -Category "SOFTWARE PROGRAMMAZIONE" -Id "OpenAI.Codex"),
+    (New-AppDefinition -Name "HeidiSQL" -Description "Un programma leggero e veloce molto popolare su Windows. Gestisce MySQL, MariaDB e altri database con un'interfaccia semplice." -Category "SOFTWARE PROGRAMMAZIONE" -Id "HeidiSQL.HeidiSQL"),
     (New-AppDefinition -Name "XAMPP" -Description "Stack locale con Apache, MariaDB/MySQL, PHP e Perl" -Category "SOFTWARE PROGRAMMAZIONE" -Type "Download" -Url "https://www.apachefriends.org/xampp-files/8.2.4/xampp-windows-x64-8.2.4-0-VS16-installer.exe" -InstallPath "C:\xampp\xampp-control.exe" -UninstallType "None"),
 
     # STAMPANTI
